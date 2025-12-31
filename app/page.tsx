@@ -1,65 +1,97 @@
-import Image from "next/image";
+import { getPlayers } from './actions'
+import { AddPlayerDialog } from '@/components/AddPlayerDialog'
+import { RecordMatchDialog } from '@/components/RecordMatchDialog'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Trophy, Swords, Crown, Zap } from 'lucide-react'
 
-export default function Home() {
+export const dynamic = 'force-dynamic'
+
+export default async function Home() {
+  const players = await getPlayers()
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+    <div className="container mx-auto p-4 md:p-8 space-y-8 max-w-6xl">
+        <header className="flex flex-col md:flex-row justify-between items-end gap-6 border-b border-border pb-6">
+            <div className="space-y-1 text-center md:text-left">
+                <h1 className="text-6xl md:text-8xl font-black uppercase tracking-wider text-foreground leading-[0.8]">
+                  Pool<span className="text-primary">Rank</span>
+                </h1>
+                <p className="text-muted-foreground text-xl tracking-widest flex items-center gap-2">
+                   <Zap className="w-5 h-5 text-yellow-500" />
+                   SYSTEM::ONLINE
+                </p>
+            </div>
+            
+            <div className="flex gap-4">
+                <AddPlayerDialog />
+                <RecordMatchDialog players={players} />
+            </div>
+        </header>
+
+        <section className="grid grid-cols-1 gap-8">
+            <Card className="border border-border bg-card/50 shadow-lg">
+                <CardHeader className="border-b border-border p-6 flex flex-row items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <Trophy className="w-8 h-8 text-yellow-500" />
+                        <CardTitle className="text-4xl font-bold uppercase tracking-wide">
+                            Leaderboard
+                        </CardTitle>
+                    </div>
+                    <div className="text-2xl font-bold text-muted-foreground animate-pulse">
+                        LIVE_DATA
+                    </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                    <Table>
+                        <TableHeader>
+                            <TableRow className="hover:bg-transparent">
+                                <TableHead className="w-[100px] text-center font-bold text-2xl">RANK</TableHead>
+                                <TableHead className="font-bold text-2xl">PLAYER</TableHead>
+                                <TableHead className="text-right font-bold text-2xl text-primary">ELO</TableHead>
+                                <TableHead className="text-right font-bold text-2xl text-green-500 hidden sm:table-cell">W</TableHead>
+                                <TableHead className="text-right font-bold text-2xl text-red-500 hidden sm:table-cell">L</TableHead>
+                                <TableHead className="text-right font-bold text-2xl">TOTAL</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {players.map((player, index) => (
+                                <TableRow key={player.id} className="hover:bg-accent/50 transition-colors text-xl">
+                                    <TableCell className="text-center font-bold text-3xl">
+                                        {index === 0 ? <span className="text-yellow-500">#1</span> : 
+                                         index === 1 ? <span className="text-slate-400">#2</span> : 
+                                         index === 2 ? <span className="text-orange-600">#3</span> : 
+                                         <span className="text-muted-foreground">{index + 1}</span>}
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex items-center gap-4">
+                                            {index === 0 && <Crown className="w-6 h-6 text-yellow-500" />}
+                                            <span className="font-bold tracking-wide uppercase">{player.name}</span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="text-right font-bold text-3xl text-primary">
+                                        {player.elo}
+                                    </TableCell>
+                                    <TableCell className="text-right text-green-500 hidden sm:table-cell">{player.wins}</TableCell>
+                                    <TableCell className="text-right text-red-500 hidden sm:table-cell">{player.losses}</TableCell>
+                                    <TableCell className="text-right text-muted-foreground">{player.wins + player.losses}</TableCell>
+                                </TableRow>
+                            ))}
+                            {players.length === 0 && (
+                                <TableRow>
+                                    <TableCell colSpan={6} className="text-center py-24 text-muted-foreground border-none">
+                                        <div className="flex flex-col items-center gap-4 opacity-50">
+                                            <Swords className="w-16 h-16" />
+                                            <p className="text-3xl font-bold uppercase">No Players Configured</p>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+        </section>
     </div>
-  );
+  )
 }
