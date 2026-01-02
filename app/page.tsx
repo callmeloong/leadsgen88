@@ -83,7 +83,7 @@ export default async function Home() {
         </header>
         
         {/* Pass both Player ID (for query) and Auth ID (for submitter check) */}
-        {currentPlayer && (
+        {currentPlayer && user && (
             <>
                 <IncomingChallenges playerId={currentPlayer.id} />
                 <PendingMatches playerId={currentPlayer.id} currentAuthId={user.id} />
