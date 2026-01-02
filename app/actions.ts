@@ -355,7 +355,7 @@ export async function changePassword(password: string) {
     return { success: true }
 }
 
-export async function updateProfile(playerId: string, name: string, nickname: string, nickname_placement: string = 'middle') {
+export async function updateProfile(playerId: string, name: string, nickname: string, telegram: string, nickname_placement: string = 'middle') {
     if (!name || name.trim().length === 0) return { error: "Tên không được để trống" }
 
     const cookieStore = await cookies()
@@ -375,6 +375,7 @@ export async function updateProfile(playerId: string, name: string, nickname: st
     const { error } = await supabase.from('Player').update({
         name: name.trim(),
         nickname: nickname ? nickname.trim() : null,
+        telegram: telegram ? telegram.trim().replace('@', '') : null,
         nickname_placement: nickname_placement
     }).eq('id', playerId)
 
@@ -412,7 +413,12 @@ export async function issueChallenge(opponentId: string, message?: string) {
     if (error) return { error: "Lỗi khi gửi lời thách đấu" }
 
     // Notify Telegram
-    let msg = `⚔️ **LỜI TUYÊN CHIẾN!**\n\n**${challenger.name}** vừa thách đấu **${opponent.name}**.`
+    let opponentName = `**${opponent.name}**`
+    if (opponent.telegram) {
+        opponentName += ` (@${opponent.telegram})`
+    }
+
+    let msg = `⚔️ **LỜI TUYÊN CHIẾN!**\n\n**${challenger.name}** vừa thách đấu ${opponentName}.`
     if (message) {
         msg += `\n\n💬 Lời nhắn: "${message}"`
     }

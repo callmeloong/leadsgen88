@@ -30,6 +30,7 @@ export function EditProfileDialog({ player }: { player: any }) {
     const [open, setOpen] = useState(false)
     const [name, setName] = useState(player.name)
     const [nickname, setNickname] = useState(player.nickname || '')
+    const [telegram, setTelegram] = useState(player.telegram || '')
     const [placement, setPlacement] = useState(player.nickname_placement || 'middle')
     const [loading, setLoading] = useState(false)
     const router = useRouter()
@@ -38,7 +39,7 @@ export function EditProfileDialog({ player }: { player: any }) {
         e.preventDefault()
         setLoading(true)
 
-        const res = await updateProfile(player.id, name, nickname, placement)
+        const res = await updateProfile(player.id, name, nickname, telegram, placement)
         
         setLoading(false)
         if (res.error) {
@@ -109,6 +110,21 @@ export function EditProfileDialog({ player }: { player: any }) {
                                 </SelectContent>
                              </Select>
                         </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="telegram">Telegram Username (Optional)</Label>
+                        <div className="flex items-center">
+                            <span className="bg-muted px-3 py-2 border border-r-0 rounded-l-md text-muted-foreground">@</span>
+                            <Input 
+                                id="telegram" 
+                                value={telegram} 
+                                onChange={(e) => setTelegram(e.target.value)} 
+                                placeholder="username"
+                                className="rounded-l-none"
+                            />
+                        </div>
+                        <p className="text-xs text-muted-foreground">Để bot tag bạn khi có kèo mới.</p>
                     </div>
                     
                     <DialogFooter>
