@@ -15,13 +15,17 @@ export function AddPlayerDialog() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+        if (!email) {
+            toast.error("Email bắt buộc phải có")
+            return
+        }
         setLoading(true)
         const res = await createPlayer(name, email)
         setLoading(false)
         if (res.error) {
             toast.error(res.error)
         } else {
-            toast.success("Đã thêm người chơi")
+            toast.success("Tạo thành công! Pass mặc định: 123456a@", { duration: 5000 })
             setOpen(false)
             setName('')
             setEmail('')
@@ -52,7 +56,7 @@ export function AddPlayerDialog() {
                     <div className="space-y-2">
                         <Input 
                             className="text-xl p-6 font-bold"
-                            placeholder="EMAIL (OPTIONAL)..." 
+                            placeholder="EMAIL (REQUIRED)..." 
                             type="email"
                             value={email} 
                             onChange={(e) => setEmail(e.target.value)} 

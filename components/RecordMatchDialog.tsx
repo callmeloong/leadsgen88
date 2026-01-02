@@ -15,7 +15,7 @@ interface Player {
   name: string
 }
 
-export function RecordMatchDialog({ players }: { players: Player[] }) {
+export function RecordMatchDialog({ players, userRole, currentUserId }: { players: Player[]; userRole: string; currentUserId?: string }) {
   const searchParams = useSearchParams()
   const challengeOpponent = searchParams.get('challenge')
   const [open, setOpen] = useState(false)
@@ -23,16 +23,22 @@ export function RecordMatchDialog({ players }: { players: Player[] }) {
   
   const [player1, setPlayer1] = useState<string>('')
   const [player2, setPlayer2] = useState<string>('')
-
-  // Auto-open challenge
-  useEffect(() => {
-      if (challengeOpponent) {
-          setOpen(true)
-          setPlayer2(challengeOpponent) // Auto-select opponent
-      }
-  }, [challengeOpponent])
   const [score1, setScore1] = useState<string>('')
   const [score2, setScore2] = useState<string>('')
+
+  // Auto-set Player 1 logic
+  useEffect(() => {
+    // If entering via Challenge mode
+    if (challengeOpponent) {
+      setOpen(true)
+      setPlayer2(challengeOpponent)
+      if (currentUserId) setPlayer1(currentUserId)
+    } 
+    // If normal mode and not admin, force Player 1 to be current user
+    else if (userRole !== 'admin' && currentUserId) {
+      setPlayer1(currentUserId)
+    }
+  }, [challengeOpponent, currentUserId, userRole])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -52,7 +58,11 @@ export function RecordMatchDialog({ players }: { players: Player[] }) {
     if (res.error) {
         toast.error(res.error)
     } else {
-        toast.success("Đã ghi nhận trận đấu")
+        if (res.pending) {
+            toast.info("Đã gửi kết quả! Chờ đối thủ xác nhận.")
+        } else {
+            toast.success("Đã ghi nhận trận đấu")
+        }
         setOpen(false)
         setPlayer1('')
         setPlayer2('')
@@ -65,7 +75,7 @@ export function RecordMatchDialog({ players }: { players: Player[] }) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="secondary" size="lg" className="text-xl font-bold uppercase tracking-widest">
-            RECORD MATCH
+            {userRole === 'admin' ? 'RECORD MATCH' : 'SUBMIT RESULT'}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px] bg-card border-border">
@@ -76,7 +86,7 @@ export function RecordMatchDialog({ players }: { players: Player[] }) {
             <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                     <Label className="text-xl font-bold uppercase text-muted-foreground">Player 1</Label>
-                    <Select value={player1} onValueChange={setPlayer1}>
+                    <Select value={player1} onValueChange={setPlayer1} disabled={userRole !== 'admin'}>
                         <SelectTrigger className="text-xl font-bold">
                             <SelectValue placeholder="SELECT..." />
                         </SelectTrigger>

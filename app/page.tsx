@@ -4,12 +4,13 @@ import { AddPlayerDialog } from '@/components/AddPlayerDialog'
 import { RecordMatchDialog } from '@/components/RecordMatchDialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Trophy, Swords, Crown, Zap, Activity } from 'lucide-react'
+import { Trophy, Crown, Zap, Activity } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
 import Link from 'next/link'
 import { UserNav } from '@/components/UserNav'
 import { ActivityFeed } from '@/components/ActivityFeed'
+import { PendingMatches } from '@/components/PendingMatches'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,12 +39,21 @@ export default async function Home() {
             player1:player1Id(name, id),
             player2:player2Id(name, id)
         `)
+        .eq('status', 'APPROVED')
         .order('createdAt', { ascending: false })
         .limit(10)
+
+  // Fetch Current Player Profile if logged in
+  let currentPlayer = null
+  if (user && user.email) {
+      const { data } = await supabase.from('Player').select('*').eq('email', user.email).single()
+      currentPlayer = data
+  }
 
   return (
     <div className="container mx-auto p-4 md:p-8 space-y-8 max-w-7xl">
         <header className="flex flex-col md:flex-row justify-between items-end gap-6 border-b border-border pb-6">
+            {/* Header Content */}
             <div className="space-y-1 text-center md:text-left">
                 <h1 className="text-6xl md:text-8xl font-black uppercase tracking-wider text-foreground leading-[0.8]">
                   Pool<span className="text-primary">Rank</span>
@@ -58,7 +68,7 @@ export default async function Home() {
                 {user ? (
                     <>
                         {userRole === 'admin' && <AddPlayerDialog />}
-                        <RecordMatchDialog players={players} />
+                        <RecordMatchDialog players={players} userRole={userRole} currentUserId={currentPlayer?.id || user.id} />
                         <UserNav email={user.email!} role={userRole} />
                     </>
                 ) : (
@@ -68,6 +78,9 @@ export default async function Home() {
                 )}
             </div>
         </header>
+        
+        {/* Pass both Player ID (for query) and Auth ID (for submitter check) */}
+        {currentPlayer && user && <PendingMatches playerId={currentPlayer.id} currentAuthId={user.id} />}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Leaderboard Section - Takes up 2 columns */}

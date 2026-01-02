@@ -161,13 +161,20 @@ export default async function PlayerProfile({ params }: { params: Promise<{ id: 
                                 const oppScore = isP1 ? match.player2Score : match.player1Score
                                 const isWin = match.winnerId === id
                                 const eloChange = isP1 ? match.eloDelta1 : match.eloDelta2
+                                const isPending = match.status === 'PENDING'
                                 
                                 return (
                                     <TableRow key={match.id} className="hover:bg-muted/50">
                                         <TableCell>
-                                            <Badge variant={isWin ? "default" : "secondary"} className={isWin ? "bg-green-600 hover:bg-green-700" : "bg-red-900/50 text-red-200"}>
-                                                {isWin ? "VICTORY" : "DEFEAT"}
-                                            </Badge>
+                                            {isPending ? (
+                                                <Badge variant="outline" className="border-yellow-500 text-yellow-500 animate-pulse">
+                                                    PENDING
+                                                </Badge>
+                                            ) : (
+                                                <Badge variant={isWin ? "default" : "secondary"} className={isWin ? "bg-green-600 hover:bg-green-700" : "bg-red-900/50 text-red-200"}>
+                                                    {isWin ? "VICTORY" : "DEFEAT"}
+                                                </Badge>
+                                            )}
                                         </TableCell>
                                         <TableCell className="font-bold text-lg">
                                             <div className="flex items-center gap-2">
@@ -187,10 +194,14 @@ export default async function PlayerProfile({ params }: { params: Promise<{ id: 
                                             <span className={!isWin ? "text-green-500" : "text-red-500"}>{oppScore}</span>
                                         </TableCell>
                                         <TableCell className="text-right font-mono text-lg">
-                                            {eloChange > 0 ? (
-                                                <span className="text-green-500">+{eloChange}</span>
+                                            {isPending ? (
+                                                <span className="text-muted-foreground">-</span>
                                             ) : (
-                                                <span className="text-red-500">{eloChange}</span>
+                                                eloChange > 0 ? (
+                                                    <span className="text-green-500">+{eloChange}</span>
+                                                ) : (
+                                                    <span className="text-red-500">{eloChange}</span>
+                                                )
                                             )}
                                         </TableCell>
                                         <TableCell className="text-right text-muted-foreground text-sm">

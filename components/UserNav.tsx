@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { User, LogOut, Shield } from 'lucide-react'
+import { ChangePasswordDialog } from './ChangePasswordDialog'
 
 export function UserNav({ email, role }: { email: string; role: string }) {
   return (
@@ -33,7 +34,10 @@ export function UserNav({ email, role }: { email: string; role: string }) {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => logout()} className="text-red-500 cursor-pointer">
+        <DropdownMenuItem asChild>
+             <ChangePasswordDialog />
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => logout()} className="text-red-500 cursor-pointer font-bold uppercase">
           <LogOut className="mr-2 h-4 w-4" />
           <span>LOGOUT</span>
         </DropdownMenuItem>
