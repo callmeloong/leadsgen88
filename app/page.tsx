@@ -1,17 +1,48 @@
+
 import { getPlayers } from './actions'
 import { AddPlayerDialog } from '@/components/AddPlayerDialog'
 import { RecordMatchDialog } from '@/components/RecordMatchDialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Trophy, Swords, Crown, Zap } from 'lucide-react'
+import { Trophy, Swords, Crown, Zap, Activity } from 'lucide-react'
+import { createClient } from '@/lib/supabase/server'
+import { cookies } from 'next/headers'
+import Link from 'next/link'
+import { UserNav } from '@/components/UserNav'
+import { ActivityFeed } from '@/components/ActivityFeed'
 
 export const dynamic = 'force-dynamic'
 
 export default async function Home() {
   const players = await getPlayers()
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+  // Fetch User & Profile
+  const { data: { user } } = await supabase.auth.getUser()
+  let userRole = 'player'
+  
+  if (user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+      if (profile) userRole = profile.role
+  }
+
+  // Fetch recent matches for Activity Feed
+  const { data: recentMatches } = await supabase
+        .from('Match')
+        .select(`
+            *,
+            player1:player1Id(name, id),
+            player2:player2Id(name, id)
+        `)
+        .order('createdAt', { ascending: false })
+        .limit(10)
 
   return (
-    <div className="container mx-auto p-4 md:p-8 space-y-8 max-w-6xl">
+    <div className="container mx-auto p-4 md:p-8 space-y-8 max-w-7xl">
         <header className="flex flex-col md:flex-row justify-between items-end gap-6 border-b border-border pb-6">
             <div className="space-y-1 text-center md:text-left">
                 <h1 className="text-6xl md:text-8xl font-black uppercase tracking-wider text-foreground leading-[0.8]">
@@ -23,75 +54,87 @@ export default async function Home() {
                 </p>
             </div>
             
-            <div className="flex gap-4">
-                <AddPlayerDialog />
-                <RecordMatchDialog players={players} />
+            <div className="flex items-center gap-4">
+                {user ? (
+                    <>
+                        {userRole === 'admin' && <AddPlayerDialog />}
+                        <RecordMatchDialog players={players} />
+                        <UserNav email={user.email!} role={userRole} />
+                    </>
+                ) : (
+                    <a href="/login" className="px-4 py-2 bg-secondary text-secondary-foreground rounded hover:bg-secondary/80 font-bold uppercase tracking-wider">
+                        Login
+                    </a>
+                )}
             </div>
         </header>
 
-        <section className="grid grid-cols-1 gap-8">
-            <Card className="border border-border bg-card/50 shadow-lg">
-                <CardHeader className="border-b border-border p-6 flex flex-row items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <Trophy className="w-8 h-8 text-yellow-500" />
-                        <CardTitle className="text-4xl font-bold uppercase tracking-wide">
-                            Leaderboard
-                        </CardTitle>
-                    </div>
-                    <div className="text-2xl font-bold text-muted-foreground animate-pulse">
-                        LIVE_DATA
-                    </div>
-                </CardHeader>
-                <CardContent className="p-0">
-                    <Table>
-                        <TableHeader>
-                            <TableRow className="hover:bg-transparent">
-                                <TableHead className="w-[100px] text-center font-bold text-2xl">RANK</TableHead>
-                                <TableHead className="font-bold text-2xl">PLAYER</TableHead>
-                                <TableHead className="text-right font-bold text-2xl text-primary">ELO</TableHead>
-                                <TableHead className="text-right font-bold text-2xl text-green-500 hidden sm:table-cell">W</TableHead>
-                                <TableHead className="text-right font-bold text-2xl text-red-500 hidden sm:table-cell">L</TableHead>
-                                <TableHead className="text-right font-bold text-2xl">TOTAL</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {players.map((player, index) => (
-                                <TableRow key={player.id} className="hover:bg-accent/50 transition-colors text-xl">
-                                    <TableCell className="text-center font-bold text-3xl">
-                                        {index === 0 ? <span className="text-yellow-500">#1</span> : 
-                                         index === 1 ? <span className="text-slate-400">#2</span> : 
-                                         index === 2 ? <span className="text-orange-600">#3</span> : 
-                                         <span className="text-muted-foreground">{index + 1}</span>}
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex items-center gap-4">
-                                            {index === 0 && <Crown className="w-6 h-6 text-yellow-500" />}
-                                            <span className="font-bold tracking-wide uppercase">{player.name}</span>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="text-right font-bold text-3xl text-primary">
-                                        {player.elo}
-                                    </TableCell>
-                                    <TableCell className="text-right text-green-500 hidden sm:table-cell">{player.wins}</TableCell>
-                                    <TableCell className="text-right text-red-500 hidden sm:table-cell">{player.losses}</TableCell>
-                                    <TableCell className="text-right text-muted-foreground">{player.wins + player.losses}</TableCell>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Leaderboard Section - Takes up 2 columns */}
+            <div className="lg:col-span-2 space-y-6">
+                <div className="flex items-center gap-2 text-2xl font-black uppercase tracking-wider text-primary">
+                    <Trophy className="w-8 h-8" />
+                    Leaderboard
+                </div>
+                
+                <Card className="border-border bg-card/50">
+                    <CardHeader className="pb-2">
+                        <CardTitle>STANDINGS</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow className="hover:bg-transparent border-primary/20">
+                                    <TableHead className="w-[80px] font-black text-primary">RANK</TableHead>
+                                    <TableHead className="font-black text-primary">PLAYER</TableHead>
+                                    <TableHead className="text-right font-black text-primary">ELO</TableHead>
+                                    <TableHead className="text-right font-black text-primary">WINS</TableHead>
+                                    <TableHead className="text-right font-black text-primary">LOSSES</TableHead>
                                 </TableRow>
-                            ))}
-                            {players.length === 0 && (
-                                <TableRow>
-                                    <TableCell colSpan={6} className="text-center py-24 text-muted-foreground border-none">
-                                        <div className="flex flex-col items-center gap-4 opacity-50">
-                                            <Swords className="w-16 h-16" />
-                                            <p className="text-3xl font-bold uppercase">No Players Configured</p>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
-        </section>
+                            </TableHeader>
+                            <TableBody>
+                                {players.map((player: any, index: number) => (
+                                    <TableRow key={player.id} className="text-2xl hover:bg-muted/50 transition-colors border-primary/10">
+                                        <TableCell className="font-bold text-muted-foreground">
+                                            #{index + 1}
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex items-center gap-4">
+                                                {index === 0 && <Crown className="w-6 h-6 text-yellow-500" />}
+                                                <Link href={`/player/${player.id}`} className="font-bold tracking-wide uppercase hover:underline hover:text-primary transition-colors">
+                                                    {player.name}
+                                                </Link>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="text-right font-bold text-3xl text-primary">
+                                            {player.elo}
+                                        </TableCell>
+                                        <TableCell className="text-right font-bold text-green-500">{player.wins}</TableCell>
+                                        <TableCell className="text-right font-bold text-red-500">{player.losses}</TableCell>
+                                    </TableRow>
+                                ))}
+                                {players.length === 0 && (
+                                    <TableRow>
+                                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                                            No data available. Add players to start.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Activity Feed Section - Takes up 1 column */}
+            <div className="lg:col-span-1 space-y-6">
+                 <div className="flex items-center gap-2 text-2xl font-black uppercase tracking-wider text-muted-foreground">
+                    <Activity className="w-8 h-8" />
+                    Activity
+                </div>
+                <ActivityFeed matches={recentMatches || []} />
+            </div>
+        </div>
     </div>
   )
 }

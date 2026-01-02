@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -15,11 +16,21 @@ interface Player {
 }
 
 export function RecordMatchDialog({ players }: { players: Player[] }) {
+  const searchParams = useSearchParams()
+  const challengeOpponent = searchParams.get('challenge')
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   
   const [player1, setPlayer1] = useState<string>('')
   const [player2, setPlayer2] = useState<string>('')
+
+  // Auto-open challenge
+  useEffect(() => {
+      if (challengeOpponent) {
+          setOpen(true)
+          setPlayer2(challengeOpponent) // Auto-select opponent
+      }
+  }, [challengeOpponent])
   const [score1, setScore1] = useState<string>('')
   const [score2, setScore2] = useState<string>('')
 
