@@ -16,13 +16,16 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from '@/components/ui/button'
 
+import { Textarea } from '@/components/ui/textarea'
+
 export function ChallengeButton({ player }: { player: any }) {
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
+    const [message, setMessage] = useState('')
 
     const handleChallenge = async () => {
         setLoading(true)
-        const res = await issueChallenge(player.id)
+        const res = await issueChallenge(player.id, message)
         setLoading(false)
         setOpen(false)
 
@@ -30,6 +33,7 @@ export function ChallengeButton({ player }: { player: any }) {
             toast.error(res.error)
         } else {
             toast.success("Đã gửi lời thách đấu! Chờ đối thủ nhận kèo.")
+            setMessage('')
         }
     }
 
@@ -46,10 +50,21 @@ export function ChallengeButton({ player }: { player: any }) {
                     <DialogTitle>Gửi lời tuyên chiến?</DialogTitle>
                     <DialogDescription>
                         Bạn có chắc chắn muốn thách đấu **{player.name}** không?
-                        <br />
-                        Một thông báo sẽ được gửi tới Telegram của nhóm.
                     </DialogDescription>
                 </DialogHeader>
+                
+                <div className="py-2">
+                    <Textarea 
+                        placeholder="Nhập lời nhắn gửi yêu thương (hoặc khiêu khích)..."
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        className="bg-card/50"
+                    />
+                    <p className="text-xs text-muted-foreground mt-2">
+                        *Tin nhắn sẽ được gửi cùng thông báo tới Telegram.
+                    </p>
+                </div>
+
                 <DialogFooter>
                     <Button variant="ghost" onClick={() => setOpen(false)}>Hủy</Button>
                     <Button onClick={handleChallenge} disabled={loading} className="bg-red-600 hover:bg-red-700 text-white">

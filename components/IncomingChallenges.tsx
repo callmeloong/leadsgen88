@@ -1,7 +1,7 @@
 'use client'
 
 import { createClient } from '@/lib/supabase/client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { respondChallenge } from '@/app/actions'
 import { toast } from 'sonner'
@@ -11,7 +11,7 @@ export function IncomingChallenges({ playerId }: { playerId: string }) {
     const [challenges, setChallenges] = useState<any[]>([])
     const supabase = createClient()
 
-    const fetchChallenges = async () => {
+    const fetchChallenges = useCallback(async () => {
         const { data } = await supabase
             .from('Challenge')
             .select(`
@@ -22,7 +22,7 @@ export function IncomingChallenges({ playerId }: { playerId: string }) {
             .eq('status', 'PENDING')
         
         if (data) setChallenges(data)
-    }
+    }, [playerId, supabase])
 
     useEffect(() => {
         fetchChallenges()
@@ -34,7 +34,7 @@ export function IncomingChallenges({ playerId }: { playerId: string }) {
             .subscribe()
 
         return () => { supabase.removeChannel(channel) }
-    }, [playerId])
+    }, [fetchChallenges, supabase])
 
     const handleRespond = async (id: string, accept: boolean) => {
         toast.promise(respondChallenge(id, accept), {
@@ -67,9 +67,16 @@ export function IncomingChallenges({ playerId }: { playerId: string }) {
                                 <span className="text-primary font-bold">{c.challenger.name}</span>
                                 <span className="mx-2 text-muted-foreground text-base font-sans">thách đấu bạn</span>
                              </div>
-                             <span className="text-xs text-muted-foreground uppercase tracking-widest border border-border px-2 py-0.5 rounded-full">
-                                Head-to-Head
-                             </span>
+                             {c.message && (
+                                <div className="text-sm italic text-muted-foreground mt-1 bg-black/20 p-2 rounded border-l-2 border-red-500">
+                                    &quot;{c.message}&quot;
+                                </div>
+                             )}
+                             <div>
+                                <span className="text-xs text-muted-foreground uppercase tracking-widest border border-border px-2 py-0.5 rounded-full">
+                                    Head-to-Head
+                                </span>
+                             </div>
                          </div>
 
                          <div className="z-10 flex gap-2">

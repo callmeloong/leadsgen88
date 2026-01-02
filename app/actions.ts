@@ -385,7 +385,7 @@ export async function updateProfile(playerId: string, name: string, nickname: st
     return { success: true }
 }
 
-export async function issueChallenge(opponentId: string) {
+export async function issueChallenge(opponentId: string, message?: string) {
     const cookieStore = await cookies()
     const supabase = createClient(cookieStore)
 
@@ -405,13 +405,20 @@ export async function issueChallenge(opponentId: string) {
     const { error } = await supabase.from('Challenge').insert({
         challengerId: challenger.id,
         opponentId: opponentId,
-        status: 'PENDING'
+        status: 'PENDING',
+        message: message // Add message
     })
 
     if (error) return { error: "Lỗi khi gửi lời thách đấu" }
 
     // Notify Telegram
-    sendTelegramMessage(`⚔️ **LỜI TUYÊN CHIẾN!**\n\n**${challenger.name}** vừa thách đấu **${opponent.name}**.\n👉 Vào app để nhận kèo ngay!`)
+    let msg = `⚔️ **LỜI TUYÊN CHIẾN!**\n\n**${challenger.name}** vừa thách đấu **${opponent.name}**.`
+    if (message) {
+        msg += `\n\n💬 Lời nhắn: "${message}"`
+    }
+    msg += `\n👉 [Vào app để nhận kèo ngay!](https://leadsgen88.longth.dev)`
+
+    sendTelegramMessage(msg)
 
     revalidatePath('/')
     revalidatePath(`/player/${opponentId}`)
