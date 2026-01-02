@@ -458,6 +458,19 @@ export async function respondChallenge(challengeId: string, accept: boolean) {
     // Notify Telegram
     if (accept) {
         sendTelegramMessage(`🔥 **KÈO ĐÃ NHẬN!**\n\n**${challenge.opponent.name}**: "Ok chiến luôn!"\nTrận đấu: **${challenge.challenger.name}** vs **${challenge.opponent.name}**.\n\nAnh em chuẩn bị xem live nhé! 🍿`)
+    } else {
+        // Random taunt messages for rejection
+        const taunts = [
+            "HÈN! 🐔",
+            "Sợ à? 😏",
+            "Chạy ngay đi! 🏃‍♂️",
+            "Không dám nhận kèo sao? 😂",
+            "Thôi tha cho đó! 😌",
+            "Yếu đuối! 💪❌"
+        ]
+        const randomTaunt = taunts[Math.floor(Math.random() * taunts.length)]
+        const msg = `🚫 **KÈO BỊ TỪ CHỐI!**\n\n**${challenge.opponent.name}** đã từ chối lời thách đấu của **${challenge.challenger.name}**.\n\n> "${randomTaunt}"`
+        sendTelegramMessage(msg)
     }
 
     revalidatePath('/')
