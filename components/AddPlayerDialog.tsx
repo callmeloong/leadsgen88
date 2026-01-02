@@ -46,7 +46,7 @@ export function AddPlayerDialog() {
                 <form onSubmit={handleSubmit} className="flex flex-col gap-6 py-4">
                     <div className="space-y-2">
                         <Input 
-                            className="text-2xl p-6 font-bold uppercase"
+                            className="text-2xl p-6 font-bold uppercase tracking-wide"
                             placeholder="PLAYER NAME..." 
                             value={name} 
                             onChange={(e) => setName(e.target.value)} 
@@ -55,7 +55,7 @@ export function AddPlayerDialog() {
                     </div>
                     <div className="space-y-2">
                         <Input 
-                            className="text-xl p-6 font-bold"
+                            className="text-2xl p-6 font-bold tracking-wide"
                             placeholder="EMAIL (REQUIRED)..." 
                             type="email"
                             value={email} 

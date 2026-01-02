@@ -58,7 +58,7 @@ export function ActivityFeed({ matches }: { matches: MatchActivity[] }) {
                             const flavor = getFlavorText(match.player1Score, match.player2Score, winnerDelta)
 
                             return (
-                                <div key={match.id} className="border-l-2 border-primary/20 pl-4 py-1 relative">
+                                <div key={match.id} className="border-l-2 border-primary/20 pl-4 py-1 relative font-mono">
                                     <div className="absolute -left-[5px] top-2 w-2 h-2 rounded-full bg-primary/50" />
                                     <p className="text-xs text-muted-foreground font-mono mb-1">
                                         {new Date(match.createdAt).toLocaleString('vi-VN', { 
