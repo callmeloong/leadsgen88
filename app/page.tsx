@@ -43,7 +43,7 @@ export default async function Home() {
         `)
         .eq('status', 'APPROVED')
         .order('createdAt', { ascending: false })
-        .limit(10)
+        .limit(5)
 
   // Fetch Current Player Profile if logged in
   let currentPlayer = null

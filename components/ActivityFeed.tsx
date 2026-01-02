@@ -61,7 +61,13 @@ export function ActivityFeed({ matches }: { matches: MatchActivity[] }) {
                                 <div key={match.id} className="border-l-2 border-primary/20 pl-4 py-1 relative">
                                     <div className="absolute -left-[5px] top-2 w-2 h-2 rounded-full bg-primary/50" />
                                     <p className="text-xs text-muted-foreground font-mono mb-1">
-                                        {new Date(match.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        {new Date(match.createdAt).toLocaleString('vi-VN', { 
+                                            day: '2-digit', 
+                                            month: '2-digit', 
+                                            year: 'numeric',
+                                            hour: '2-digit', 
+                                            minute: '2-digit' 
+                                        })}
                                     </p>
                                     <div className="text-sm">
                                         <Link href={`/player/${winner.id}`} className="font-bold text-primary hover:underline">
