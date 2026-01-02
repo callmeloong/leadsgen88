@@ -339,3 +339,33 @@ export async function changePassword(password: string) {
 
     return { success: true }
 }
+
+export async function updateProfile(playerId: string, name: string, nickname: string, nickname_placement: string = 'middle') {
+    if (!name || name.trim().length === 0) return { error: "Tên không được để trống" }
+
+    const cookieStore = await cookies()
+    const supabase = createClient(cookieStore)
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) return { error: "Bạn chưa đăng nhập" }
+
+    // Fetch Player to verify ownership
+    const { data: player, error: fetchError } = await supabase.from('Player').select('email').eq('id', playerId).single()
+
+    if (fetchError || !player) return { error: "Không tìm thấy người chơi" }
+
+    // Verify Email matches Auth User
+    if (player.email !== user.email) return { error: "Bạn không có quyền sửa đổi thông tin này" }
+
+    const { error } = await supabase.from('Player').update({
+        name: name.trim(),
+        nickname: nickname ? nickname.trim() : null,
+        nickname_placement: nickname_placement
+    }).eq('id', playerId)
+
+    if (error) return { error: "Lỗi cập nhật hồ sơ" }
+
+    revalidatePath('/')
+    revalidatePath(`/player/${playerId}`)
+    return { success: true }
+}

@@ -8,6 +8,7 @@ import { ArrowLeft, Trophy, Swords } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { EloChart } from '@/components/EloChart'
+import { EditProfileDialog } from '@/components/EditProfileDialog'
 
 export const dynamic = 'force-dynamic'
 
@@ -87,6 +88,54 @@ export default async function PlayerProfile({ params }: { params: Promise<{ id: 
     const { data: { user } } = await supabase.auth.getUser()
     const isOwnProfile = user?.email === player.email
 
+    const formatNameWithNickname = (name: string, nickname: string | null, placement: string = 'middle') => {
+        if (!nickname) return name
+        const parts = name.trim().split(' ')
+        
+        const NicknameSpan = () => (
+            <span className="text-2xl text-yellow-500 font-handjet font-normal whitespace-pre mx-1">
+                "{nickname}"
+            </span>
+        )
+
+        // Single word name -> always append at end
+        if (parts.length === 1) {
+             return (
+                <div className="flex items-center">
+                    {name} <NicknameSpan />
+                </div>
+             )
+        }
+        
+        // Multi-word name
+        if (placement === 'last') {
+             return (
+                <div className="flex items-center flex-wrap">
+                    {name} <NicknameSpan />
+                </div>
+             )
+        } else if (placement === 'first') {
+            // After surname (first word)
+            const firstName = parts.shift()
+            const rest = parts.join(' ')
+            return (
+                <div className="flex items-center flex-wrap">
+                    {firstName} <NicknameSpan /> {rest}
+                </div>
+            )
+        } else {
+             // Middle (Default) -> insert before last word
+            const lastName = parts.pop()
+            const otherNames = parts.join(' ')
+            return (
+                <div className="flex items-center flex-wrap">
+                    {otherNames} <NicknameSpan /> {lastName}
+                </div>
+            )
+        }
+    }
+
+
     return (
         <div className="container mx-auto p-4 md:p-8 max-w-5xl space-y-8">
             <Link href="/" className="inline-flex items-center text-muted-foreground hover:text-primary transition-colors mb-4">
@@ -98,11 +147,16 @@ export default async function PlayerProfile({ params }: { params: Promise<{ id: 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <Card className="md:col-span-2 border-primary/20 bg-card/50">
                     <CardHeader className="flex flex-row items-center justify-between">
-                        <CardTitle className="text-4xl font-black uppercase tracking-wider flex items-center gap-4">
-                            {player.name}
-                            <Badge variant="outline" className="text-xl px-3 py-1 border-primary text-primary">
-                                ELO: {player.elo}
-                            </Badge>
+                        <CardTitle className="text-4xl font-black uppercase tracking-wider flex flex-col md:flex-row items-center gap-4">
+                            <div className="flex items-center gap-3">
+                                {formatNameWithNickname(player.name, player.nickname, player.nickname_placement)}
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <Badge variant="outline" className="text-xl px-3 py-1 border-primary text-primary">
+                                    ELO: {player.elo}
+                                </Badge>
+                                {isOwnProfile && <EditProfileDialog player={player} />}
+                            </div>
                         </CardTitle>
                         {!isOwnProfile && (
                             <Link href={`/?challenge=${player.id}`}>

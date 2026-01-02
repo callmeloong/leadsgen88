@@ -11,6 +11,7 @@ import Link from 'next/link'
 import { UserNav } from '@/components/UserNav'
 import { ActivityFeed } from '@/components/ActivityFeed'
 import { PendingMatches } from '@/components/PendingMatches'
+import { RealtimeManager } from '@/components/RealtimeManager'
 
 export const dynamic = 'force-dynamic'
 
@@ -52,6 +53,7 @@ export default async function Home() {
 
   return (
     <div className="container mx-auto p-4 md:p-8 space-y-8 max-w-7xl">
+        <RealtimeManager />
         <header className="flex flex-col md:flex-row justify-between items-end gap-6 border-b border-border pb-6">
             {/* Header Content */}
             <div className="space-y-1 text-center md:text-left">
