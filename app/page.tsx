@@ -12,6 +12,7 @@ import { UserNav } from '@/components/UserNav'
 import { ActivityFeed } from '@/components/ActivityFeed'
 import { PendingMatches } from '@/components/PendingMatches'
 import { RealtimeManager } from '@/components/RealtimeManager'
+import { IncomingChallenges } from '@/components/IncomingChallenges'
 
 export const dynamic = 'force-dynamic'
 
@@ -82,7 +83,12 @@ export default async function Home() {
         </header>
         
         {/* Pass both Player ID (for query) and Auth ID (for submitter check) */}
-        {currentPlayer && user && <PendingMatches playerId={currentPlayer.id} currentAuthId={user.id} />}
+        {currentPlayer && (
+            <>
+                <IncomingChallenges playerId={currentPlayer.id} />
+                <PendingMatches playerId={currentPlayer.id} currentAuthId={user.id} />
+            </>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Leaderboard Section - Takes up 2 columns */}

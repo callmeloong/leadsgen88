@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { sendTelegramMessage } from '@/lib/telegram'
 
 export async function getPlayers() {
     const cookieStore = await cookies()
@@ -166,6 +167,14 @@ export async function createMatch(player1Id: string, player2Id: string, player1S
 
         if (matchError) throw matchError
 
+        // Send Telegram Notification
+        const notificationText = isPending
+            ? `⚠️ **KÈO MỚI!**\n\nNgười gửi: ${user.user_metadata?.name || 'Ai đó'}\nTrận đấu: ${p1.name} vs ${p2.name}\nTỉ số: ${player1Score} - ${player2Score}\n\n👉 Vào app xác nhận ngay!`
+            : `✅ **KẾT QUẢ:**\n\n${p1.name} vs ${p2.name}\nTỉ số: ${player1Score} - ${player2Score}\n\nELO: ${p1.name} (${delta1 > 0 ? '+' : ''}${delta1}), ${p2.name} (${delta2 > 0 ? '+' : ''}${delta2})`
+
+        // Fire and forget - don't await to avoid slowing down response
+        sendTelegramMessage(notificationText)
+
         // If Approved (Admin), Update Players immediately
         if (!isPending) {
             let s1 = 0, s2 = 0;
@@ -261,6 +270,12 @@ export async function confirmMatch(matchId: string) {
         eloDelta1: delta1,
         eloDelta2: delta2
     }).eq('id', matchId)
+
+    // Send Telegram Notification for Confirmed Match
+    const p1Name = match.player1.name
+    const p2Name = match.player2.name
+    const msg = `✅ **KÈO ĐÃ CHỐT!**\n\n${p1Name} vs ${p2Name}\nTỉ số: ${match.player1Score} - ${match.player2Score}\n\nELO: ${p1Name} (${delta1 > 0 ? '+' : ''}${delta1}), ${p2Name} (${delta2 > 0 ? '+' : ''}${delta2})`
+    sendTelegramMessage(msg)
 
     // Update Players
     await supabase.from('Player').update({
@@ -367,5 +382,77 @@ export async function updateProfile(playerId: string, name: string, nickname: st
 
     revalidatePath('/')
     revalidatePath(`/player/${playerId}`)
+    return { success: true }
+}
+
+export async function issueChallenge(opponentId: string) {
+    const cookieStore = await cookies()
+    const supabase = createClient(cookieStore)
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) return { error: "Bạn chưa đăng nhập" }
+
+    // Fetch Caller Player ID
+    const { data: challenger } = await supabase.from('Player').select('*').eq('email', user.email).single()
+    if (!challenger) return { error: "Không tìm thấy thông tin người chơi của bạn" }
+
+    if (challenger.id === opponentId) return { error: "Không thể tự thách đấu bản thân" }
+
+    const { data: opponent } = await supabase.from('Player').select('*').eq('id', opponentId).single()
+    if (!opponent) return { error: "Đối thủ không tồn tại" }
+
+    // Create Challenge
+    const { error } = await supabase.from('Challenge').insert({
+        challengerId: challenger.id,
+        opponentId: opponentId,
+        status: 'PENDING'
+    })
+
+    if (error) return { error: "Lỗi khi gửi lời thách đấu" }
+
+    // Notify Telegram
+    sendTelegramMessage(`⚔️ **LỜI TUYÊN CHIẾN!**\n\n**${challenger.name}** vừa thách đấu **${opponent.name}**.\n👉 Vào app để nhận kèo ngay!`)
+
+    revalidatePath('/')
+    revalidatePath(`/player/${opponentId}`)
+    return { success: true }
+}
+
+export async function respondChallenge(challengeId: string, accept: boolean) {
+    const cookieStore = await cookies()
+    const supabase = createClient(cookieStore)
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) return { error: "Bạn chưa đăng nhập" }
+
+    // Fetch Challenge
+    const { data: challenge } = await supabase
+        .from('Challenge')
+        .select(`*, challenger:challengerId(name), opponent:opponentId(name, email)`)
+        .eq('id', challengeId)
+        .single()
+
+    if (!challenge) return { error: "Không tìm thấy lời thách đấu" }
+
+    // Verify ownership (Must be the opponent)
+    if (challenge.opponent.email !== user.email) return { error: "Bạn không có quyền xử lý thách đấu này" }
+
+    if (challenge.status !== 'PENDING') return { error: "Lời thách đấu này đã được xử lý" }
+
+    const newStatus = accept ? 'ACCEPTED' : 'REJECTED'
+
+    const { error } = await supabase
+        .from('Challenge')
+        .update({ status: newStatus })
+        .eq('id', challengeId)
+
+    if (error) return { error: "Lỗi khi cập nhật trạng thái" }
+
+    // Notify Telegram
+    if (accept) {
+        sendTelegramMessage(`🔥 **KÈO ĐÃ NHẬN!**\n\n**${challenge.opponent.name}**: "Ok chiến luôn!"\nTrận đấu: **${challenge.challenger.name}** vs **${challenge.opponent.name}**.\n\nAnh em chuẩn bị xem live nhé! 🍿`)
+    }
+
+    revalidatePath('/')
     return { success: true }
 }

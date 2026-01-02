@@ -9,6 +9,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { EloChart } from '@/components/EloChart'
 import { EditProfileDialog } from '@/components/EditProfileDialog'
+import { ChallengeButton } from '@/components/ChallengeButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -158,14 +159,7 @@ export default async function PlayerProfile({ params }: { params: Promise<{ id: 
                                 {isOwnProfile && <EditProfileDialog player={player} />}
                             </div>
                         </CardTitle>
-                        {!isOwnProfile && (
-                            <Link href={`/?challenge=${player.id}`}>
-                                <Badge className="text-lg px-6 py-2 bg-red-600 hover:bg-red-700 cursor-pointer animate-pulse border-none text-white shadow-[0_0_15px_rgba(220,38,38,0.5)]">
-                                    <Swords className="w-5 h-5 mr-2" />
-                                    THÁCH ĐẤU
-                                </Badge>
-                            </Link>
-                        )}
+                        {!isOwnProfile && <ChallengeButton player={player} />}
                     </CardHeader>
                     <CardContent className="grid grid-cols-3 gap-4 text-center">
                         <div className="p-4 bg-background/50 rounded-lg">
