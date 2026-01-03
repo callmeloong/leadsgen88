@@ -36,7 +36,7 @@ export async function GET(request: Request) {
         }
 
         for (const challenge of upcomingChallenges) {
-            const timeStr = new Date(challenge.scheduled_time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+            const timeStr = new Date(challenge.scheduled_time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' })
 
             // Tagging logic
             let p1Name = challenge.challenger.name

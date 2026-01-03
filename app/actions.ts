@@ -423,7 +423,7 @@ export async function issueChallenge(opponentId: string, message?: string, sched
 
     if (scheduledTime) {
         const date = new Date(scheduledTime)
-        const timeStr = date.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })
+        const timeStr = date.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Ho_Chi_Minh' })
         msg += `\n\n⏰ Thời gian: **${timeStr}**`
     }
 
@@ -517,6 +517,8 @@ export async function updateMatchScore(matchId: string, player1Score: number, pl
     const { data: match } = await supabase.from('Match').select('*').eq('id', matchId).single()
     if (!match) return { error: "Match not found" }
 
+    if (match.status !== 'LIVE') return { error: "Trận đấu đã kết thúc hoặc đang chờ xác nhận" }
+
     const isPlayer1 = match.player1Id === user.id // Note: Assumes Player ID = User ID (which we enforce)
     const isPlayer2 = match.player2Id === user.id
     // Need to strictly check if we are checking against player ID or Auth ID.
@@ -547,11 +549,6 @@ export async function updateMatchScore(matchId: string, player1Score: number, pl
 }
 
 export async function finishMatch(matchId: string) {
-    // Re-use confirmMatch logic or createMatch logic?
-    // Basically set status APPROVED and Calc ELO.
-    // For simplicity, we can call confirmMatch if we refactor it? 
-    // Or just implement it here.
-
     const cookieStore = await cookies()
     const supabase = createClient(cookieStore)
 
@@ -565,71 +562,100 @@ export async function finishMatch(matchId: string) {
         .single()
 
     if (fetchError || !match) return { error: "Match not found" }
-    if (match.status !== 'LIVE') return { error: "Match is not LIVE" }
 
     // Check permissions
     const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
     const isAdmin = profile?.role === 'admin'
 
-    // Allow players involved to finish
+    // Allow players involved or admin to act
     if (!isAdmin && match.player1Id !== user.id && match.player2Id !== user.id) {
-        return { error: "Unauthorized" }
+        return { error: "Bạn không tham gia trận đấu này" }
     }
 
-    // Logic similar to confirmMatch but without checking submitter
+    // --- CASE 1: Request Finish (Status: LIVE) ---
+    if (match.status === 'LIVE') {
+        const { error } = await supabase.from('Match').update({
+            status: 'WAITING_CONFIRMATION',
+            submitterId: user.id
+        }).eq('id', matchId)
 
-    // ELO Calc
-    const p1 = match.player1
-    const p2 = match.player2
+        if (error) return { error: "Lỗi khi gửi yêu cầu kết thúc" }
 
-    const { count: p1Count } = await supabase.from('Match').select('*', { count: 'exact', head: true }).or(`player1Id.eq.${p1.id},player2Id.eq.${p1.id}`).eq('status', 'APPROVED')
-    const { count: p2Count } = await supabase.from('Match').select('*', { count: 'exact', head: true }).or(`player1Id.eq.${p2.id},player2Id.eq.${p2.id}`).eq('status', 'APPROVED')
+        // Notify
+        const opponent = match.player1Id === user.id ? match.player2 : match.player1
+        const submitterName = match.player1Id === user.id ? match.player1.name : match.player2.name
 
-    const p1Total = p1Count || 0
-    const p2Total = p2Count || 0
+        let msg = `⚠️ **XÁC NHẬN KẾT QUẢ**\n\n**${submitterName}** báo cáo tỉ số:\n**${match.player1.name}** ${match.player1Score} - ${match.player2Score} **${match.player2.name}**\n\n👉 ${opponent.name} vui lòng vào xác nhận!`
 
-    let s1, s2;
-    if (match.player1Score > match.player2Score) { s1 = 1; s2 = 0; }
-    else if (match.player2Score > match.player1Score) { s1 = 0; s2 = 1; }
-    else { s1 = 0.5; s2 = 0.5; }
+        if (opponent.telegram) msg += ` (@${opponent.telegram})`
+        sendTelegramMessage(msg)
 
-    const scoreDiff = Math.abs(match.player1Score - match.player2Score)
-    const marginFactor = scoreDiff > 0 ? Math.sqrt(scoreDiff) : 1
-    const K1_Val = p1Total < 30 ? 32 : 16
-    const K2_Val = p2Total < 30 ? 32 : 16
+        revalidatePath(`/live/${matchId}`)
+        return { success: true, message: "Đã gửi yêu cầu xác nhận!" }
+    }
 
-    const p1Expected = 1 / (1 + Math.pow(10, (p2.elo - p1.elo) / 400))
-    const p2Expected = 1 / (1 + Math.pow(10, (p1.elo - p2.elo) / 400))
+    // --- CASE 2: Confirm Finish (Status: WAITING_CONFIRMATION) ---
+    if (match.status === 'WAITING_CONFIRMATION') {
+        // Prevent submitter from confirming their own request (unless admin)
+        if (!isAdmin && match.submitterId === user.id) {
+            return { error: "Đang chờ đối thủ xác nhận" }
+        }
 
-    const delta1 = Math.round(K1_Val * (s1 - p1Expected) * marginFactor)
-    const delta2 = Math.round(K2_Val * (s2 - p2Expected) * marginFactor)
+        // Logic similar to confirmMatch
+        const p1 = match.player1
+        const p2 = match.player2
 
-    // Update Match
-    await supabase.from('Match').update({
-        status: 'APPROVED',
-        eloDelta1: delta1,
-        eloDelta2: delta2
-    }).eq('id', matchId)
+        const { count: p1Count } = await supabase.from('Match').select('*', { count: 'exact', head: true }).or(`player1Id.eq.${p1.id},player2Id.eq.${p1.id}`).eq('status', 'APPROVED')
+        const { count: p2Count } = await supabase.from('Match').select('*', { count: 'exact', head: true }).or(`player1Id.eq.${p2.id},player2Id.eq.${p2.id}`).eq('status', 'APPROVED')
 
-    // Send Telegram Notification
-    const msg = `🏁 **TRẬN ĐẤU KẾT THÚC!**\n\n**${p1.name}** vs **${p2.name}**\nTỉ số: ${match.player1Score} - ${match.player2Score}\n\nELO Update: ${p1.name} (${delta1 > 0 ? '+' : ''}${delta1}), ${p2.name} (${delta2 > 0 ? '+' : ''}${delta2})`
-    sendTelegramMessage(msg)
+        const p1Total = p1Count || 0
+        const p2Total = p2Count || 0
 
-    // Update Players
-    await supabase.from('Player').update({
-        elo: p1.elo + delta1,
-        wins: p1.wins + (s1 === 1 ? 1 : 0),
-        losses: p1.losses + (s1 === 0 && s2 === 1 ? 1 : 0)
-    }).eq('id', p1.id)
+        let s1, s2;
+        if (match.player1Score > match.player2Score) { s1 = 1; s2 = 0; }
+        else if (match.player2Score > match.player1Score) { s1 = 0; s2 = 1; }
+        else { s1 = 0.5; s2 = 0.5; }
 
-    await supabase.from('Player').update({
-        elo: p2.elo + delta2,
-        wins: p2.wins + (s2 === 1 ? 1 : 0),
-        losses: p2.losses + (s2 === 0 && s1 === 1 ? 1 : 0)
-    }).eq('id', p2.id)
+        const scoreDiff = Math.abs(match.player1Score - match.player2Score)
+        const marginFactor = scoreDiff > 0 ? Math.sqrt(scoreDiff) : 1
+        const K1_Val = p1Total < 30 ? 32 : 16
+        const K2_Val = p2Total < 30 ? 32 : 16
 
-    revalidatePath('/')
-    return { success: true }
+        const p1Expected = 1 / (1 + Math.pow(10, (p2.elo - p1.elo) / 400))
+        const p2Expected = 1 / (1 + Math.pow(10, (p1.elo - p2.elo) / 400))
+
+        const delta1 = Math.round(K1_Val * (s1 - p1Expected) * marginFactor)
+        const delta2 = Math.round(K2_Val * (s2 - p2Expected) * marginFactor)
+
+        // Update Match
+        await supabase.from('Match').update({
+            status: 'APPROVED',
+            eloDelta1: delta1,
+            eloDelta2: delta2
+        }).eq('id', matchId)
+
+        // Notify
+        const msg = `🏁 **TRẬN ĐẤU KẾT THÚC!**\n\n**${p1.name}** vs **${p2.name}**\nTỉ số: ${match.player1Score} - ${match.player2Score}\n\nELO Update: ${p1.name} (${delta1 > 0 ? '+' : ''}${delta1}), ${p2.name} (${delta2 > 0 ? '+' : ''}${delta2})`
+        sendTelegramMessage(msg)
+
+        // Update Players
+        await supabase.from('Player').update({
+            elo: p1.elo + delta1,
+            wins: p1.wins + (s1 === 1 ? 1 : 0),
+            losses: p1.losses + (s1 === 0 && s2 === 1 ? 1 : 0)
+        }).eq('id', p1.id)
+
+        await supabase.from('Player').update({
+            elo: p2.elo + delta2,
+            wins: p2.wins + (s2 === 1 ? 1 : 0),
+            losses: p2.losses + (s2 === 0 && s1 === 1 ? 1 : 0)
+        }).eq('id', p2.id)
+
+        revalidatePath('/')
+        return { success: true }
+    }
+
+    return { error: "Trạng thái trận đấu không hợp lệ" }
 }
 
 export async function initializeLiveMatch(challengeId: string) {
