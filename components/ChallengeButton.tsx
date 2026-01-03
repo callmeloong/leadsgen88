@@ -22,10 +22,11 @@ export function ChallengeButton({ player, customTrigger }: { player: any, custom
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
     const [message, setMessage] = useState('')
+    const [scheduledTime, setScheduledTime] = useState('')
 
     const handleChallenge = async () => {
         setLoading(true)
-        const res = await issueChallenge(player.id, message)
+        const res = await issueChallenge(player.id, message, scheduledTime)
         setLoading(false)
         setOpen(false)
 
@@ -55,13 +56,26 @@ export function ChallengeButton({ player, customTrigger }: { player: any, custom
                     </DialogDescription>
                 </DialogHeader>
                 
-                <div className="py-2">
+                <div className="py-2 space-y-4">
                     <Textarea 
                         placeholder="Nhập lời nhắn gửi yêu thương (hoặc khiêu khích)..."
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
                         className="bg-card/50"
                     />
+                    
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-muted-foreground">Thời gian thi đấu (Tùy chọn)</label>
+                        <input 
+                            type="datetime-local" 
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            onChange={(e) => setScheduledTime(e.target.value)}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            *Bot sẽ nhắc trước 30 phút.
+                        </p>
+                    </div>
+
                     <p className="text-xs text-muted-foreground mt-2">
                         *Tin nhắn sẽ được gửi cùng thông báo tới Telegram.
                     </p>

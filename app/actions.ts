@@ -386,7 +386,7 @@ export async function updateProfile(playerId: string, name: string, nickname: st
     return { success: true }
 }
 
-export async function issueChallenge(opponentId: string, message?: string) {
+export async function issueChallenge(opponentId: string, message?: string, scheduledTime?: string) {
     const cookieStore = await cookies()
     const supabase = createClient(cookieStore)
 
@@ -407,7 +407,8 @@ export async function issueChallenge(opponentId: string, message?: string) {
         challengerId: challenger.id,
         opponentId: opponentId,
         status: 'PENDING',
-        message: message // Add message
+        message: message,
+        scheduled_time: scheduledTime ? new Date(scheduledTime).toISOString() : null
     })
 
     if (error) return { error: "Lỗi khi gửi lời thách đấu" }
@@ -419,10 +420,17 @@ export async function issueChallenge(opponentId: string, message?: string) {
     }
 
     let msg = `⚔️ **LỜI TUYÊN CHIẾN!**\n\n**${challenger.name}** vừa thách đấu ${opponentName}.`
-    if (message) {
-        msg += `\n\n💬 Lời nhắn: "${message}"`
+
+    if (scheduledTime) {
+        const date = new Date(scheduledTime)
+        const timeStr = date.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })
+        msg += `\n\n⏰ Thời gian: **${timeStr}**`
     }
-    msg += `\n👉 [Vào app để nhận kèo ngay!](https://leadsgen88.longth.dev)`
+
+    if (message) {
+        msg += `\n💬 Lời nhắn: "${message}"`
+    }
+    msg += `\n\n👉 [Vào app để nhận kèo ngay!](https://leadsgen88.longth.dev)`
 
     sendTelegramMessage(msg)
 
