@@ -1,8 +1,13 @@
 
+'use client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Activity } from 'lucide-react'
 import Link from 'next/link'
+import { createClient } from '@/lib/supabase/client'
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { initializeLiveMatch } from '@/app/actions'
 
 interface MatchActivity {
     id: string
@@ -14,6 +19,9 @@ interface MatchActivity {
     eloDelta1: number
     eloDelta2: number
     createdAt: string
+    status: string
+    scheduled_time: string
+    message?: string
 }
 
 function getFlavorText(p1Score: number, p2Score: number, eloDiff: number) {
@@ -34,9 +42,25 @@ function getFlavorText(p1Score: number, p2Score: number, eloDiff: number) {
     return phrases[Math.floor(Math.random() * phrases.length)]
 }
 
-export function ActivityFeed({ matches, upcoming }: { matches: MatchActivity[], upcoming?: any[] }) {
-    console.log(upcoming);
-    
+export function ActivityFeed({ matches, upcoming, live }: { matches: MatchActivity[], upcoming?: any[], live?: any[] }) {
+    const router = useRouter()
+    const supabase = createClient()
+
+    useEffect(() => {
+        const channel = supabase.channel('activity_feed_realtime')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'Match' }, () => {
+                router.refresh()
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'Challenge' }, () => {
+                router.refresh()
+            })
+            .subscribe()
+
+        return () => {
+            supabase.removeChannel(channel)
+        }
+    }, [router, supabase])
+
     return (
         <Card className="border-border bg-card/50 flex flex-col">
             <CardHeader className="pb-2">
@@ -48,6 +72,36 @@ export function ActivityFeed({ matches, upcoming }: { matches: MatchActivity[], 
             <CardContent className="flex-1 min-h-0">
                 <ScrollArea className="pr-4">
                     <div className="space-y-4">
+                        {/* LIVE Matches Section */}
+                        {live && live.length > 0 && (
+                            <div className="mb-6">
+                                <h3 className="text-xs font-bold text-green-500 uppercase tracking-widest mb-3 flex items-center gap-2 animate-pulse">
+                                    <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                                    HAPPENING NOW
+                                </h3>
+                                <div className="space-y-3">
+                                    {live.map((match: any) => (
+                                        <Link href={`/live/${match.id}`} key={match.id} className="block group">
+                                            <div className="bg-green-950/20 border border-green-500/30 p-3 rounded text-sm relative overflow-hidden font-mono group-hover:bg-green-950/40 transition-all shadow-[0_0_10px_rgba(34,197,94,0.1)]">
+                                                <div className="absolute left-0 top-0 bottom-0 w-1 bg-green-500 animate-pulse" />
+                                                <div className="flex justify-between items-center mb-2">
+                                                    <span className="font-bold text-green-400">{match.player1.name}</span>
+                                                    <span className="text-xs text-green-500/70 font-mono border border-green-500/30 px-1 rounded">LIVE</span>
+                                                    <span className="font-bold text-green-400">{match.player2.name}</span>
+                                                </div>
+                                                <div className="flex justify-center items-center gap-4 text-2xl font-bold text-white">
+                                                    <span>{match.player1Score}</span>
+                                                    <span className="text-sm text-muted-foreground">-</span>
+                                                    <span>{match.player2Score}</span>
+                                                </div>
+                                            </div>
+                                        </Link>
+                                    ))}
+                                </div>
+                                <div className="my-4 border-t border-zinc-800 border-dashed" />
+                            </div>
+                        )}
+
                         {/* Upcoming Section */}
                         {upcoming && upcoming.length > 0 && (
                             <div className="mb-6">
@@ -56,28 +110,25 @@ export function ActivityFeed({ matches, upcoming }: { matches: MatchActivity[], 
                                     Coming Soon
                                 </h3>
                                 <div className="space-y-3">
-                                    {upcoming.map((match) => (
-                                        <form key={match.id} action={async () => {
-                                            'use server'
-                                            // Dynamic import to avoid cycle if needed, but here simple import is fine if handled correctly or use bind
-                                            const { initializeLiveMatch } = await import('@/app/actions')
-                                            await initializeLiveMatch(match.id)
-                                        }}>
-                                            <button type="submit" className="w-full text-left cursor-pointer group block">
-                                                <div className="bg-zinc-900/50 border border-zinc-800 p-3 rounded text-sm relative overflow-hidden font-mono group-hover:border-primary/50 transition-colors">
-                                                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 to-red-500" />
-                                                    <div className="flex justify-between items-center mb-1">
-                                                        <span className="font-bold text-blue-400">{match.challenger.name}</span>
-                                                        <span className="text-xs text-muted-foreground font-mono">VS</span>
-                                                        <span className="font-bold text-red-400">{match.opponent.name}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                        <span>⏰ {new Date(match.scheduled_time).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}</span>
-                                                    </div>
-                                                    {match.message && <p className="text-xs italic text-yellow-500/70 mt-1">"{match.message}"</p>}
+                                    {upcoming.map((match: any) => (
+                                        <button 
+                                            key={match.id}
+                                            onClick={() => initializeLiveMatch(match.id)}
+                                            className="w-full text-left cursor-pointer group block"
+                                        >
+                                            <div className="bg-zinc-900/50 border border-zinc-800 p-3 rounded text-sm relative overflow-hidden font-mono group-hover:border-primary/50 transition-colors">
+                                                <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 to-red-500" />
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <span className="font-bold text-blue-400">{match.challenger.name}</span>
+                                                    <span className="text-xs text-muted-foreground font-mono">VS</span>
+                                                    <span className="font-bold text-red-400">{match.opponent.name}</span>
                                                 </div>
-                                            </button>
-                                        </form>
+                                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                    <span>⏰ {new Date(match.scheduled_time).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' })}</span>
+                                                </div>
+                                                {match.message && <p className="text-xs italic text-yellow-500/70 mt-1">"{match.message}"</p>}
+                                            </div>
+                                        </button>
                                     ))}
                                 </div>
                                 <div className="my-4 border-t border-zinc-800 border-dashed" />
@@ -102,7 +153,8 @@ export function ActivityFeed({ matches, upcoming }: { matches: MatchActivity[], 
                                             month: '2-digit', 
                                             year: 'numeric',
                                             hour: '2-digit', 
-                                            minute: '2-digit' 
+                                            minute: '2-digit',
+                                            timeZone: 'Asia/Ho_Chi_Minh'
                                         })}
                                     </p>
                                     <div className="text-sm">
@@ -124,7 +176,7 @@ export function ActivityFeed({ matches, upcoming }: { matches: MatchActivity[], 
                                 </div>
                             )
                         })}
-                        {matches.length === 0 && (
+                        {matches.length === 0 && (!live || live.length === 0) && (!upcoming || upcoming.length === 0) && (
                             <p className="text-center text-muted-foreground py-8">No data found.</p>
                         )}
                     </div>

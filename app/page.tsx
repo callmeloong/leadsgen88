@@ -48,6 +48,24 @@ export default async function Home() {
         .order('createdAt', { ascending: false })
         .limit(5)
 
+  // Fetch LIVE Matches
+  const { data: liveMatches } = await supabase
+        .from('Match')
+        .select(`
+            *,
+            player1:player1Id(name, id),
+            player2:player2Id(name, id)
+        `)
+        .eq('status', 'LIVE')
+        .order('createdAt', { ascending: false })
+
+  // Filter out matches that are scheduled in the future
+  const nowTime = new Date().getTime()
+  const validLiveMatches = liveMatches?.filter((match: any) => {
+      if (!match.scheduled_time) return true
+      return new Date(match.scheduled_time).getTime() <= nowTime
+  }) || []
+
   // Fetch Current Player Profile if logged in
   let currentPlayer = null
   if (user && user.email) {
@@ -196,7 +214,7 @@ export default async function Home() {
                     <Activity className="w-8 h-8" />
                     Activity
                 </div>
-                <ActivityFeed matches={recentMatches || []} upcoming={upcomingMatches || []} />
+                <ActivityFeed matches={recentMatches || []} upcoming={upcomingMatches || []} live={validLiveMatches} />
             </div>
         </div>
     </div>

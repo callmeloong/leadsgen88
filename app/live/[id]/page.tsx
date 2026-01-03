@@ -121,9 +121,12 @@ export default function LiveMatchPage({ params }: { params: Promise<{ id: string
 
     if (!match) return <div className="p-8 text-center text-white">Match not found</div>
 
-    const isParticipant = user && (user.id === match.player1Id || user.id === match.player2Id)
-    // Note: Admin check is hard on client without profile fetch, reusing participant logic for now as requested "2 người trong trận"
-    // Ideally we fetch profile role too if we want admin to override.
+    const isParticipant = user && (
+        user.id === match.player1Id || 
+        user.id === match.player2Id ||
+        (match.player1 && user.email === match.player1.email) ||
+        (match.player2 && user.email === match.player2.email)
+    )
 
     const isWaiting = match.status === 'WAITING_CONFIRMATION'
     const isSubmitter = match.submitterId === user?.id

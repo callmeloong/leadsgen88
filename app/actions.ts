@@ -532,9 +532,21 @@ export async function updateMatchScore(matchId: string, player1Score: number, pl
     // Actually, match.player1Id IS the Player table ID.
     // So we can compare directly.
 
-    if (!isAdmin && match.player1Id !== user.id && match.player2Id !== user.id) {
-        // Fallback: Check if user email matches player email (if IDs differ for some reason)
-        // But let's trust IDs for now.
+    // Verify via ID OR Email (Fallback for legacy/seed data)
+    let isAuthorized = false
+    if (match.player1Id === user.id || match.player2Id === user.id) isAuthorized = true
+
+    // Check email if ID check failed
+    if (!isAuthorized) {
+        const { data: p1 } = await supabase.from('Player').select('email').eq('id', match.player1Id).single()
+        const { data: p2 } = await supabase.from('Player').select('email').eq('id', match.player2Id).single()
+
+        if ((p1 && p1.email === user.email) || (p2 && p2.email === user.email)) {
+            isAuthorized = true
+        }
+    }
+
+    if (!isAdmin && !isAuthorized) {
         return { error: "Bạn không có quyền cập nhật tỉ số trận này" }
     }
 
@@ -567,8 +579,17 @@ export async function finishMatch(matchId: string) {
     const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
     const isAdmin = profile?.role === 'admin'
 
-    // Allow players involved or admin to act
-    if (!isAdmin && match.player1Id !== user.id && match.player2Id !== user.id) {
+    // Check permissions via ID or Email
+    let isAuthorized = false
+    if (match.player1Id === user.id || match.player2Id === user.id) isAuthorized = true
+
+    if (!isAuthorized) {
+        const { data: p1 } = await supabase.from('Player').select('email').eq('id', match.player1Id).single()
+        const { data: p2 } = await supabase.from('Player').select('email').eq('id', match.player2Id).single()
+        if ((p1 && p1.email === user.email) || (p2 && p2.email === user.email)) isAuthorized = true
+    }
+
+    if (!isAdmin && !isAuthorized) {
         return { error: "Bạn không tham gia trận đấu này" }
     }
 
