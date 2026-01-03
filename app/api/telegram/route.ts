@@ -1,5 +1,3 @@
-import { createClient } from '@/lib/supabase/server'
-import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN
@@ -34,9 +32,13 @@ export async function POST(request: Request) {
 }
 
 // Helper to fetch data and send message
+import { createAdminClient } from '@/lib/supabase/admin'
+
+// ... (keep existing imports)
+
+// Helper to fetch data and send message
 async function handleLeaderboardCommand(chatId: number) {
-    const cookieStore = await cookies()
-    const supabase = createClient(cookieStore)
+    const supabase = createAdminClient()
 
     // Fetch Top 10
     const { data: players, error } = await supabase
@@ -58,7 +60,7 @@ async function handleLeaderboardCommand(chatId: number) {
         message += `   ⚜️ ELO: ${p.elo} | ⚔️ W/L: ${p.wins}/${p.losses}\n\n`
     })
 
-    message += "👉 Xem chi tiết tại: [Link App](https://leadsgen.com)" // Replace with actual link later
+    message += "👉 Xem chi tiết tại: [PoolRank App](https://leadsgen88.longth.dev)"
 
     await sendMessage(chatId, message)
 }
