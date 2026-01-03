@@ -55,6 +55,20 @@ export default async function Home() {
       currentPlayer = data
   }
 
+  // Fetch Upcoming Matches (Accepted Challenges)
+  const now = new Date().toISOString()
+  const { data: upcomingMatches } = await supabase
+        .from('Challenge') // Revert to Challenge
+        .select(`
+            *,
+            challenger:challengerId(name),
+            opponent:opponentId(name)
+        `)
+        .eq('status', 'ACCEPTED')
+        .gt('scheduled_time', now)
+        .order('scheduled_time', { ascending: true })
+        .limit(3)
+
   return (
     <div className="container mx-auto p-4 md:p-8 space-y-8 max-w-7xl">
         <RealtimeManager />
@@ -182,7 +196,7 @@ export default async function Home() {
                     <Activity className="w-8 h-8" />
                     Activity
                 </div>
-                <ActivityFeed matches={recentMatches || []} />
+                <ActivityFeed matches={recentMatches || []} upcoming={upcomingMatches || []} />
             </div>
         </div>
     </div>

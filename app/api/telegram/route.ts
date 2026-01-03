@@ -1,3 +1,4 @@
+import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN
@@ -20,6 +21,8 @@ export async function POST(request: Request) {
         // Handle Commands
         if (text === '/rank' || text === '/bxh' || text === '/top' || text.startsWith('/rank') || text.startsWith('/bxh')) {
             await handleLeaderboardCommand(chatId)
+        } else if (text === '/matches' || text === '/lich' || text === '/schedule') {
+            await handleScheduleCommand(chatId)
         } else if (text === '/ping') {
             await sendMessage(chatId, "Pong! 🏓 Hệ thống vẫn đang chạy ngon lành cành đào.")
         }
@@ -31,10 +34,50 @@ export async function POST(request: Request) {
     }
 }
 
-// Helper to fetch data and send message
-import { createAdminClient } from '@/lib/supabase/admin'
+// Helper to handle schedule command
+async function handleScheduleCommand(chatId: number) {
+    const supabase = createAdminClient()
+    const now = new Date().toISOString()
 
-// ... (keep existing imports)
+    const { data: challenges, error } = await supabase
+        .from('Challenge')
+        .select(`
+            *,
+            challenger:challengerId(name),
+            opponent:opponentId(name)
+        `)
+        .eq('status', 'ACCEPTED')
+        .gt('scheduled_time', now)
+        .order('scheduled_time', { ascending: true })
+        .limit(10)
+
+    if (error) {
+        console.error("Error fetching schedule:", error)
+        await sendMessage(chatId, "❌ Lỗi khi lấy lịch thi đấu.")
+        return
+    }
+
+    if (!challenges || challenges.length === 0) {
+        await sendMessage(chatId, "📅 Hiện chưa có kèo đấu nào được lên lịch sắp tới.")
+        return
+    }
+
+    let message = "📅 **LỊCH THI ĐẤU SẮP TỚI** 📅\n\n"
+
+    challenges.forEach((c) => {
+        const date = new Date(c.scheduled_time)
+        const timeStr = date.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })
+
+        message += `⏰ **${timeStr}**\n`
+        message += `⚔️ **${c.challenger.name}** vs **${c.opponent.name}**\n`
+        if (c.message) message += `💬 "${c.message}"\n`
+        message += `-------------------\n`
+    })
+
+    message += "\n👉 [Vào app để xem chi tiết](https://leadsgen88.longth.dev)"
+
+    await sendMessage(chatId, message)
+}
 
 // Helper to fetch data and send message
 async function handleLeaderboardCommand(chatId: number) {

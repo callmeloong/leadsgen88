@@ -471,7 +471,22 @@ export async function respondChallenge(challengeId: string, accept: boolean) {
 
     // Notify Telegram
     if (accept) {
-        sendTelegramMessage(`🔥 **KÈO ĐÃ NHẬN!**\n\n**${challenge.opponent.name}**: "Ok chiến luôn!"\nTrận đấu: **${challenge.challenger.name}** vs **${challenge.opponent.name}**.\n\nAnh em chuẩn bị xem live nhé! 🍿`)
+        // Create a LIVE match automatically
+        const { error: matchError } = await supabase.from('Match').insert({
+            player1Id: challenge.challengerId,
+            player2Id: challenge.opponentId,
+            player1Score: 0,
+            player2Score: 0,
+            status: 'LIVE',
+            scheduled_time: challenge.scheduled_time
+        })
+
+        if (matchError) {
+            console.error("Error creating live match:", matchError)
+            return { error: "Lỗi khi tạo trận đấu Live" }
+        }
+
+        sendTelegramMessage(`🔥 **KÈO ĐÃ NHẬN!**\n\n**${challenge.opponent.name}**: "Ok chiến luôn!"\nTrận đấu: **${challenge.challenger.name}** vs **${challenge.opponent.name}**.\n\n🔴 **LIVE MATCH IS READY!**\nAnh em chuẩn bị xem live tỉ số nhé! 🍿`)
     } else {
         // Random taunt messages for rejection
         const taunts = [
@@ -489,4 +504,168 @@ export async function respondChallenge(challengeId: string, accept: boolean) {
 
     revalidatePath('/')
     return { success: true }
+}
+
+export async function updateMatchScore(matchId: string, player1Score: number, player2Score: number) {
+    const cookieStore = await cookies()
+    const supabase = createClient(cookieStore)
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) return { error: "Unauthorized" }
+
+    // Verify user is involved or admin
+    const { data: match } = await supabase.from('Match').select('*').eq('id', matchId).single()
+    if (!match) return { error: "Match not found" }
+
+    const isPlayer1 = match.player1Id === user.id // Note: Assumes Player ID = User ID (which we enforce)
+    const isPlayer2 = match.player2Id === user.id
+    // Need to strictly check if we are checking against player ID or Auth ID.
+    // In createPlayer we did: id: authData.user.id. So Player.id === Auth.id.
+
+    // However, if we are using "Profiles" table for roles?
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+    const isAdmin = profile?.role === 'admin'
+
+    // Fetch Players to check their Auth IDs if needed, but assuming PK is same:
+    // Actually, match.player1Id IS the Player table ID.
+    // So we can compare directly.
+
+    if (!isAdmin && match.player1Id !== user.id && match.player2Id !== user.id) {
+        // Fallback: Check if user email matches player email (if IDs differ for some reason)
+        // But let's trust IDs for now.
+        return { error: "Bạn không có quyền cập nhật tỉ số trận này" }
+    }
+
+    await supabase.from('Match').update({
+        player1Score,
+        player2Score
+    }).eq('id', matchId)
+
+    revalidatePath(`/live/${matchId}`)
+    revalidatePath('/')
+    return { success: true }
+}
+
+export async function finishMatch(matchId: string) {
+    // Re-use confirmMatch logic or createMatch logic?
+    // Basically set status APPROVED and Calc ELO.
+    // For simplicity, we can call confirmMatch if we refactor it? 
+    // Or just implement it here.
+
+    const cookieStore = await cookies()
+    const supabase = createClient(cookieStore)
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) return { error: "Unauthorized" }
+
+    const { data: match, error: fetchError } = await supabase
+        .from('Match')
+        .select('*, player1:player1Id(*), player2:player2Id(*)')
+        .eq('id', matchId)
+        .single()
+
+    if (fetchError || !match) return { error: "Match not found" }
+    if (match.status !== 'LIVE') return { error: "Match is not LIVE" }
+
+    // Check permissions
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+    const isAdmin = profile?.role === 'admin'
+
+    // Allow players involved to finish
+    if (!isAdmin && match.player1Id !== user.id && match.player2Id !== user.id) {
+        return { error: "Unauthorized" }
+    }
+
+    // Logic similar to confirmMatch but without checking submitter
+
+    // ELO Calc
+    const p1 = match.player1
+    const p2 = match.player2
+
+    const { count: p1Count } = await supabase.from('Match').select('*', { count: 'exact', head: true }).or(`player1Id.eq.${p1.id},player2Id.eq.${p1.id}`).eq('status', 'APPROVED')
+    const { count: p2Count } = await supabase.from('Match').select('*', { count: 'exact', head: true }).or(`player1Id.eq.${p2.id},player2Id.eq.${p2.id}`).eq('status', 'APPROVED')
+
+    const p1Total = p1Count || 0
+    const p2Total = p2Count || 0
+
+    let s1, s2;
+    if (match.player1Score > match.player2Score) { s1 = 1; s2 = 0; }
+    else if (match.player2Score > match.player1Score) { s1 = 0; s2 = 1; }
+    else { s1 = 0.5; s2 = 0.5; }
+
+    const scoreDiff = Math.abs(match.player1Score - match.player2Score)
+    const marginFactor = scoreDiff > 0 ? Math.sqrt(scoreDiff) : 1
+    const K1_Val = p1Total < 30 ? 32 : 16
+    const K2_Val = p2Total < 30 ? 32 : 16
+
+    const p1Expected = 1 / (1 + Math.pow(10, (p2.elo - p1.elo) / 400))
+    const p2Expected = 1 / (1 + Math.pow(10, (p1.elo - p2.elo) / 400))
+
+    const delta1 = Math.round(K1_Val * (s1 - p1Expected) * marginFactor)
+    const delta2 = Math.round(K2_Val * (s2 - p2Expected) * marginFactor)
+
+    // Update Match
+    await supabase.from('Match').update({
+        status: 'APPROVED',
+        eloDelta1: delta1,
+        eloDelta2: delta2
+    }).eq('id', matchId)
+
+    // Send Telegram Notification
+    const msg = `🏁 **TRẬN ĐẤU KẾT THÚC!**\n\n**${p1.name}** vs **${p2.name}**\nTỉ số: ${match.player1Score} - ${match.player2Score}\n\nELO Update: ${p1.name} (${delta1 > 0 ? '+' : ''}${delta1}), ${p2.name} (${delta2 > 0 ? '+' : ''}${delta2})`
+    sendTelegramMessage(msg)
+
+    // Update Players
+    await supabase.from('Player').update({
+        elo: p1.elo + delta1,
+        wins: p1.wins + (s1 === 1 ? 1 : 0),
+        losses: p1.losses + (s1 === 0 && s2 === 1 ? 1 : 0)
+    }).eq('id', p1.id)
+
+    await supabase.from('Player').update({
+        elo: p2.elo + delta2,
+        wins: p2.wins + (s2 === 1 ? 1 : 0),
+        losses: p2.losses + (s2 === 0 && s1 === 1 ? 1 : 0)
+    }).eq('id', p2.id)
+
+    revalidatePath('/')
+    return { success: true }
+}
+
+export async function initializeLiveMatch(challengeId: string) {
+    const cookieStore = await cookies()
+    const supabase = createClient(cookieStore)
+
+    // Fetch Challenge
+    const { data: challenge } = await supabase.from('Challenge').select('*, challenger:challengerId(*), opponent:opponentId(*)').eq('id', challengeId).single()
+    if (!challenge) return { error: "Challenge not found" }
+
+    // Check if Match already exists (LIVE)
+    const { data: existingMatch } = await supabase
+        .from('Match')
+        .select('id')
+        .eq('player1Id', challenge.challengerId)
+        .eq('player2Id', challenge.opponentId)
+        .eq('status', 'LIVE')
+        .single()
+
+    if (existingMatch) {
+        redirect(`/live/${existingMatch.id}`)
+    }
+
+    // Create New Match
+    const { data: newMatch, error } = await supabase.from('Match').insert({
+        player1Id: challenge.challengerId,
+        player2Id: challenge.opponentId,
+        player1Score: 0,
+        player2Score: 0,
+        status: 'LIVE',
+        scheduled_time: challenge.scheduled_time
+    }).select().single()
+
+    if (error || !newMatch) {
+        return { error: "Failed to create match" }
+    }
+
+    redirect(`/live/${newMatch.id}`)
 }

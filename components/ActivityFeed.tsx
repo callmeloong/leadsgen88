@@ -34,7 +34,9 @@ function getFlavorText(p1Score: number, p2Score: number, eloDiff: number) {
     return phrases[Math.floor(Math.random() * phrases.length)]
 }
 
-export function ActivityFeed({ matches }: { matches: MatchActivity[] }) {
+export function ActivityFeed({ matches, upcoming }: { matches: MatchActivity[], upcoming?: any[] }) {
+    console.log(upcoming);
+    
     return (
         <Card className="border-border bg-card/50 flex flex-col">
             <CardHeader className="pb-2">
@@ -46,15 +48,49 @@ export function ActivityFeed({ matches }: { matches: MatchActivity[] }) {
             <CardContent className="flex-1 min-h-0">
                 <ScrollArea className="pr-4">
                     <div className="space-y-4">
+                        {/* Upcoming Section */}
+                        {upcoming && upcoming.length > 0 && (
+                            <div className="mb-6">
+                                <h3 className="text-xs font-bold text-red-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                                    Coming Soon
+                                </h3>
+                                <div className="space-y-3">
+                                    {upcoming.map((match) => (
+                                        <form key={match.id} action={async () => {
+                                            'use server'
+                                            // Dynamic import to avoid cycle if needed, but here simple import is fine if handled correctly or use bind
+                                            const { initializeLiveMatch } = await import('@/app/actions')
+                                            await initializeLiveMatch(match.id)
+                                        }}>
+                                            <button type="submit" className="w-full text-left cursor-pointer group block">
+                                                <div className="bg-zinc-900/50 border border-zinc-800 p-3 rounded text-sm relative overflow-hidden font-mono group-hover:border-primary/50 transition-colors">
+                                                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 to-red-500" />
+                                                    <div className="flex justify-between items-center mb-1">
+                                                        <span className="font-bold text-blue-400">{match.challenger.name}</span>
+                                                        <span className="text-xs text-muted-foreground font-mono">VS</span>
+                                                        <span className="font-bold text-red-400">{match.opponent.name}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                        <span>⏰ {new Date(match.scheduled_time).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}</span>
+                                                    </div>
+                                                    {match.message && <p className="text-xs italic text-yellow-500/70 mt-1">"{match.message}"</p>}
+                                                </div>
+                                            </button>
+                                        </form>
+                                    ))}
+                                </div>
+                                <div className="my-4 border-t border-zinc-800 border-dashed" />
+                            </div>
+                        )}
+
+                        {/* Recent Results */}
                         {matches.map((match) => {
                             const isP1Win = match.winnerId === match.player1.id
                             const winner = isP1Win ? match.player1 : match.player2
                             const loser = isP1Win ? match.player2 : match.player1
                             const winnerDelta = isP1Win ? match.eloDelta1 : match.eloDelta2
                             
-                            // Flavor text logic needs elo change context
-                            // We don't have pre-match elo diff easily here without calculation, 
-                            // but we can imply "Upset" if the winner got a LOT of points (e.g. > 20)
                             const flavor = getFlavorText(match.player1Score, match.player2Score, winnerDelta)
 
                             return (

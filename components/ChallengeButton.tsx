@@ -26,7 +26,8 @@ export function ChallengeButton({ player, customTrigger }: { player: any, custom
 
     const handleChallenge = async () => {
         setLoading(true)
-        const res = await issueChallenge(player.id, message, scheduledTime)
+        const formattedTime = scheduledTime ? new Date(scheduledTime).toISOString() : undefined
+        const res = await issueChallenge(player.id, message, formattedTime)
         setLoading(false)
         setOpen(false)
 
