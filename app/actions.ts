@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { sendTelegramMessage } from '@/lib/telegram'
+import { sendTelegramMessage, escapeHtml } from '@/lib/telegram'
 
 export async function getPlayers() {
     const cookieStore = await cookies()
@@ -169,8 +169,8 @@ export async function createMatch(player1Id: string, player2Id: string, player1S
 
         // Send Telegram Notification
         const notificationText = isPending
-            ? `⚠️ **KÈO MỚI!**\n\nNgười gửi: ${user.user_metadata?.name || 'Ai đó'}\nTrận đấu: ${p1.name} vs ${p2.name}\nTỉ số: ${player1Score} - ${player2Score}\n\n👉 Vào app xác nhận ngay!`
-            : `✅ **KẾT QUẢ:**\n\n${p1.name} vs ${p2.name}\nTỉ số: ${player1Score} - ${player2Score}\n\nELO: ${p1.name} (${delta1 > 0 ? '+' : ''}${delta1}), ${p2.name} (${delta2 > 0 ? '+' : ''}${delta2})`
+            ? `⚠️ <b>KÈO MỚI!</b>\n\nNgười gửi: ${escapeHtml(user.user_metadata?.name || 'Ai đó')}\nTrận đấu: ${escapeHtml(p1.name)} vs ${escapeHtml(p2.name)}\nTỉ số: ${player1Score} - ${player2Score}\n\n👉 Vào app xác nhận ngay!`
+            : `✅ <b>KẾT QUẢ:</b>\n\n${escapeHtml(p1.name)} vs ${escapeHtml(p2.name)}\nTỉ số: ${player1Score} - ${player2Score}\n\nELO: ${escapeHtml(p1.name)} (${delta1 > 0 ? '+' : ''}${delta1}), ${escapeHtml(p2.name)} (${delta2 > 0 ? '+' : ''}${delta2})`
 
         // Await notification
         await sendTelegramMessage(notificationText)
@@ -274,7 +274,7 @@ export async function confirmMatch(matchId: string) {
     // Send Telegram Notification for Confirmed Match
     const p1Name = match.player1.name
     const p2Name = match.player2.name
-    const msg = `✅ **KÈO ĐÃ CHỐT!**\n\n${p1Name} vs ${p2Name}\nTỉ số: ${match.player1Score} - ${match.player2Score}\n\nELO: ${p1Name} (${delta1 > 0 ? '+' : ''}${delta1}), ${p2Name} (${delta2 > 0 ? '+' : ''}${delta2})`
+    const msg = `✅ <b>KÈO ĐÃ CHỐT!</b>\n\n${escapeHtml(p1Name)} vs ${escapeHtml(p2Name)}\nTỉ số: ${match.player1Score} - ${match.player2Score}\n\nELO: ${escapeHtml(p1Name)} (${delta1 > 0 ? '+' : ''}${delta1}), ${escapeHtml(p2Name)} (${delta2 > 0 ? '+' : ''}${delta2})`
     await sendTelegramMessage(msg)
 
     // Update Players
@@ -414,23 +414,23 @@ export async function issueChallenge(opponentId: string, message?: string, sched
     if (error) return { error: "Lỗi khi gửi lời thách đấu" }
 
     // Notify Telegram
-    let opponentName = `**${opponent.name}**`
+    let opponentName = `<b>${escapeHtml(opponent.name)}</b>`
     if (opponent.telegram) {
-        opponentName += ` (@${opponent.telegram})`
+        opponentName += ` (@${escapeHtml(opponent.telegram)})`
     }
 
-    let msg = `⚔️ **LỜI TUYÊN CHIẾN!**\n\n**${challenger.name}** vừa thách đấu ${opponentName}.`
+    let msg = `⚔️ <b>LỜI TUYÊN CHIẾN!</b>\n\n<b>${escapeHtml(challenger.name)}</b> vừa thách đấu ${opponentName}.`
 
     if (scheduledTime) {
         const date = new Date(scheduledTime)
         const timeStr = date.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Ho_Chi_Minh' })
-        msg += `\n\n⏰ Thời gian: **${timeStr}**`
+        msg += `\n\n⏰ Thời gian: <b>${timeStr}</b>`
     }
 
     if (message) {
-        msg += `\n💬 Lời nhắn: "${message}"`
+        msg += `\n💬 Lời nhắn: "${escapeHtml(message)}"`
     }
-    msg += `\n\n👉 [Vào app để nhận kèo ngay!](https://leadsgen88.longth.dev)`
+    msg += `\n\n👉 <a href="https://leadsgen88.longth.dev">Vào app để nhận kèo ngay!</a>`
 
     // Await to ensure delivery
     await sendTelegramMessage(msg)
@@ -487,7 +487,7 @@ export async function respondChallenge(challengeId: string, accept: boolean) {
             return { error: "Lỗi khi tạo trận đấu Live" }
         }
 
-        await sendTelegramMessage(`🔥 **KÈO ĐÃ NHẬN!**\n\n**${challenge.opponent.name}**: "Ok chiến luôn!"\nTrận đấu: **${challenge.challenger.name}** vs **${challenge.opponent.name}**.\n\n🔴 **LIVE MATCH IS READY!**\nAnh em chuẩn bị xem live tỉ số nhé! 🍿`)
+        await sendTelegramMessage(`🔥 <b>KÈO ĐÃ NHẬN!</b>\n\n<b>${escapeHtml(challenge.opponent.name)}</b>: "Ok chiến luôn!"\nTrận đấu: <b>${escapeHtml(challenge.challenger.name)}</b> vs <b>${escapeHtml(challenge.opponent.name)}</b>.\n\n🔴 <b>LIVE MATCH IS READY!</b>\nAnh em chuẩn bị xem live tỉ số nhé! 🍿`)
     } else {
         // Random taunt messages for rejection
         const taunts = [
@@ -499,7 +499,7 @@ export async function respondChallenge(challengeId: string, accept: boolean) {
             "Yếu đuối! 💪❌"
         ]
         const randomTaunt = taunts[Math.floor(Math.random() * taunts.length)]
-        const msg = `🚫 **KÈO BỊ TỪ CHỐI!**\n\n**${challenge.opponent.name}** đã từ chối lời thách đấu của **${challenge.challenger.name}**.\n\n> "${randomTaunt}"`
+        const msg = `🚫 <b>KÈO BỊ TỪ CHỐI!</b>\n\n<b>${escapeHtml(challenge.opponent.name)}</b> đã từ chối lời thách đấu của <b>${escapeHtml(challenge.challenger.name)}</b>.\n\n> "${randomTaunt}"`
         await sendTelegramMessage(msg)
     }
 
@@ -607,7 +607,7 @@ export async function finishMatch(matchId: string) {
         const opponent = match.player1Id === user.id ? match.player2 : match.player1
         const submitterName = match.player1Id === user.id ? match.player1.name : match.player2.name
 
-        let msg = `⚠️ **XÁC NHẬN KẾT QUẢ**\n\n**${submitterName}** báo cáo tỉ số:\n**${match.player1.name}** ${match.player1Score} - ${match.player2Score} **${match.player2.name}**\n\n👉 ${opponent.name} vui lòng vào xác nhận!`
+        let msg = `⚠️ <b>XÁC NHẬN KẾT QUẢ</b>\n\n<b>${escapeHtml(submitterName)}</b> báo cáo tỉ số:\n<b>${escapeHtml(match.player1.name)}</b> ${match.player1Score} - ${match.player2Score} <b>${escapeHtml(match.player2.name)}</b>\n\n👉 ${escapeHtml(opponent.name)} vui lòng vào xác nhận!`
 
         if (opponent.telegram) msg += ` (@${opponent.telegram})`
         await sendTelegramMessage(msg)
@@ -657,7 +657,7 @@ export async function finishMatch(matchId: string) {
         }).eq('id', matchId)
 
         // Notify
-        const msg = `🏁 **TRẬN ĐẤU KẾT THÚC!**\n\n**${p1.name}** vs **${p2.name}**\nTỉ số: ${match.player1Score} - ${match.player2Score}\n\nELO Update: ${p1.name} (${delta1 > 0 ? '+' : ''}${delta1}), ${p2.name} (${delta2 > 0 ? '+' : ''}${delta2})`
+        const msg = `🏁 <b>TRẬN ĐẤU KẾT THÚC!</b>\n\n<b>${escapeHtml(p1.name)}</b> vs <b>${escapeHtml(p2.name)}</b>\nTỉ số: ${match.player1Score} - ${match.player2Score}\n\nELO Update: ${escapeHtml(p1.name)} (${delta1 > 0 ? '+' : ''}${delta1}), ${escapeHtml(p2.name)} (${delta2 > 0 ? '+' : ''}${delta2})`
         await sendTelegramMessage(msg)
 
         // Update Players

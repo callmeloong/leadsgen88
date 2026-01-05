@@ -2,8 +2,12 @@ export async function sendTelegramMessage(text: string) {
     const token = process.env.TELEGRAM_BOT_TOKEN
     const chatId = process.env.TELEGRAM_CHAT_ID
 
+    console.log(`[Telegram] Attempting to send message to ${chatId}...`)
+
     if (!token || !chatId) {
-        console.warn("Telegram credentials not found. Skipping notification.")
+        console.error("[Telegram] CRITICAL: Credentials missing in .env file!")
+        console.log("TeleToken:", token ? "OK" : "MISSING")
+        console.log("ChatID:", chatId ? "OK" : "MISSING")
         return
     }
 
@@ -12,7 +16,7 @@ export async function sendTelegramMessage(text: string) {
         const body = {
             chat_id: chatId,
             text: text,
-            parse_mode: 'Markdown'
+            parse_mode: 'HTML'
         }
 
         const res = await fetch(url, {
@@ -24,9 +28,22 @@ export async function sendTelegramMessage(text: string) {
         })
 
         if (!res.ok) {
-            console.error("Failed to send Telegram message:", await res.text())
+            const errorText = await res.text()
+            console.error(`[Telegram] API Error ${res.status}:`, errorText)
+        } else {
+            console.log(`[Telegram] Message sent successfully!`)
         }
     } catch (error) {
-        console.error("Error sending Telegram message:", error)
+        console.error("[Telegram] Network Error:", error)
     }
+}
+
+export function escapeHtml(unsafe: string | null | undefined): string {
+    if (!unsafe) return ""
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }
