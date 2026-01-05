@@ -137,16 +137,28 @@ export function ActivityFeed({ matches, upcoming, live }: { matches: MatchActivi
 
                         {/* Recent Results */}
                         {matches.map((match) => {
-                            const isP1Win = match.winnerId === match.player1.id
-                            const winner = isP1Win ? match.player1 : match.player2
-                            const loser = isP1Win ? match.player2 : match.player1
-                            const winnerDelta = isP1Win ? match.eloDelta1 : match.eloDelta2
+                            const isDraw = match.player1Score === match.player2Score
+                            const isP1Win = match.player1Score > match.player2Score
                             
-                            const flavor = getFlavorText(match.player1Score, match.player2Score, winnerDelta)
+                            let winner = match.player1
+                            let loser = match.player2
+                            let winnerDelta = match.eloDelta1
+                            
+                            if (isP1Win) {
+                                winner = match.player1
+                                loser = match.player2
+                                winnerDelta = match.eloDelta1
+                            } else if (!isDraw) {
+                                winner = match.player2
+                                loser = match.player1
+                                winnerDelta = match.eloDelta2
+                            }
+                            
+                            const flavor = getFlavorText(match.player1Score, match.player2Score, match.eloDelta1) // Use absolute delta doesn't matter much for flavor logic
 
                             return (
                                 <div key={match.id} className="border-l-2 border-primary/20 pl-4 py-1 relative font-mono">
-                                    <div className="absolute -left-[5px] top-2 w-2 h-2 rounded-full bg-primary/50" />
+                                    <div className={`absolute -left-[5px] top-2 w-2 h-2 rounded-full ${isDraw ? 'bg-yellow-500/50' : 'bg-primary/50'}`} />
                                     <p className="text-xs text-muted-foreground font-mono mb-1">
                                         {new Date(match.createdAt).toLocaleString('vi-VN', { 
                                             day: '2-digit', 
@@ -157,18 +169,37 @@ export function ActivityFeed({ matches, upcoming, live }: { matches: MatchActivi
                                             timeZone: 'Asia/Ho_Chi_Minh'
                                         })}
                                     </p>
-                                    <div className="text-sm">
-                                        <Link href={`/player/${winner.id}`} className="font-bold text-primary hover:underline">
-                                            {winner.name}
-                                        </Link>
-                                        <span className="text-muted-foreground mx-1">def.</span>
-                                        <Link href={`/player/${loser.id}`} className="font-bold text-muted-foreground hover:underline">
-                                            {loser.name}
-                                        </Link>
-                                    </div>
+                                    
+                                    {isDraw ? (
+                                        <div className="text-sm">
+                                            <Link href={`/player/${match.player1.id}`} className="font-bold text-foreground hover:underline">
+                                                {match.player1.name}
+                                            </Link>
+                                            <span className="text-muted-foreground mx-1">drew with</span>
+                                            <Link href={`/player/${match.player2.id}`} className="font-bold text-foreground hover:underline">
+                                                {match.player2.name}
+                                            </Link>
+                                        </div>
+                                    ) : (
+                                        <div className="text-sm">
+                                            <Link href={`/player/${winner.id}`} className="font-bold text-primary hover:underline">
+                                                {winner.name}
+                                            </Link>
+                                            <span className="text-muted-foreground mx-1">def.</span>
+                                            <Link href={`/player/${loser.id}`} className="font-bold text-muted-foreground hover:underline">
+                                                {loser.name}
+                                            </Link>
+                                        </div>
+                                    )}
+
                                     <div className="font-mono text-sm font-bold mt-1">
                                         {match.player1Score} - {match.player2Score} 
-                                        {winnerDelta > 0 && <span className="text-green-500 ml-2">(+{winnerDelta} ELO)</span>}
+                                        {!isDraw && winnerDelta > 0 && <span className="text-green-500 ml-2">(+{winnerDelta} ELO)</span>}
+                                        {isDraw && (
+                                            <span className="ml-2 text-xs text-muted-foreground">
+                                                ({match.eloDelta1 > 0 ? '+' : ''}{match.eloDelta1}/{match.eloDelta2 > 0 ? '+' : ''}{match.eloDelta2})
+                                            </span>
+                                        )}
                                     </div>
                                     <p className="text-xs text-yellow-500/80 italic mt-1 font-mono">
                                         &quot;{flavor}&quot;

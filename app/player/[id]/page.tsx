@@ -39,7 +39,15 @@ export default async function PlayerProfile({ params }: { params: Promise<{ id: 
         .order('createdAt', { ascending: false })
         .limit(20)
 
-    const totalMatches = player.wins + player.losses
+    // Fetch actual total matches count (to include draws)
+    const { count: realTotalMatches } = await supabase
+        .from('Match')
+        .select('*', { count: 'exact', head: true })
+        .or(`player1Id.eq.${id},player2Id.eq.${id}`)
+        .eq('status', 'APPROVED')
+
+    const totalMatches = realTotalMatches || (player.wins + player.losses)
+    const draws = Math.max(0, totalMatches - (player.wins + player.losses))
     const winRate = totalMatches > 0 ? Math.round((player.wins / totalMatches) * 100) : 0
 
     // Calculate ELO History
@@ -161,7 +169,7 @@ export default async function PlayerProfile({ params }: { params: Promise<{ id: 
                         </CardTitle>
                         {!isOwnProfile && <ChallengeButton player={player} />}
                     </CardHeader>
-                    <CardContent className="grid grid-cols-3 gap-4 text-center">
+                    <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
                         <div className="p-4 bg-background/50 rounded-lg">
                             <div className="text-3xl font-bold">{totalMatches}</div>
                             <div className="text-xs text-muted-foreground uppercase tracking-wider">Matches</div>
@@ -169,6 +177,10 @@ export default async function PlayerProfile({ params }: { params: Promise<{ id: 
                         <div className="p-4 bg-background/50 rounded-lg">
                             <div className="text-3xl font-bold text-green-500">{player.wins}</div>
                             <div className="text-xs text-muted-foreground uppercase tracking-wider">Wins</div>
+                        </div>
+                        <div className="p-4 bg-background/50 rounded-lg">
+                            <div className="text-3xl font-bold text-zinc-400">{draws}</div>
+                            <div className="text-xs text-muted-foreground uppercase tracking-wider">Draws</div>
                         </div>
                         <div className="p-4 bg-background/50 rounded-lg">
                             <div className="text-3xl font-bold text-yellow-500">{winRate}%</div>
@@ -207,7 +219,8 @@ export default async function PlayerProfile({ params }: { params: Promise<{ id: 
                                 const opponentName = isP1 ? match.player2.name : match.player1.name
                                 const myScore = isP1 ? match.player1Score : match.player2Score
                                 const oppScore = isP1 ? match.player2Score : match.player1Score
-                                const isWin = match.winnerId === id
+                                const isWin = myScore > oppScore
+                                const isDraw = myScore === oppScore
                                 const eloChange = isP1 ? match.eloDelta1 : match.eloDelta2
                                 const isPending = match.status === 'PENDING'
                                 
@@ -217,6 +230,10 @@ export default async function PlayerProfile({ params }: { params: Promise<{ id: 
                                             {isPending ? (
                                                 <Badge variant="outline" className="border-yellow-500 text-yellow-500 animate-pulse">
                                                     PENDING
+                                                </Badge>
+                                            ) : isDraw ? (
+                                                 <Badge variant="secondary" className="bg-zinc-700 text-zinc-300 hover:bg-zinc-600">
+                                                    DRAW
                                                 </Badge>
                                             ) : (
                                                 <Badge variant={isWin ? "default" : "secondary"} className={isWin ? "bg-green-600 hover:bg-green-700" : "bg-red-900/50 text-red-200"}>
@@ -237,9 +254,9 @@ export default async function PlayerProfile({ params }: { params: Promise<{ id: 
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-center font-mono text-xl">
-                                            <span className={isWin ? "text-green-500" : "text-red-500"}>{myScore}</span>
+                                            <span className={isDraw ? "text-muted-foreground" : (isWin ? "text-green-500" : "text-red-500")}>{myScore}</span>
                                             <span className="text-muted-foreground mx-2">-</span>
-                                            <span className={!isWin ? "text-green-500" : "text-red-500"}>{oppScore}</span>
+                                            <span className={isDraw ? "text-muted-foreground" : (!isWin ? "text-green-500" : "text-red-500")}>{oppScore}</span>
                                         </TableCell>
                                         <TableCell className="text-right font-mono text-lg">
                                             {isPending ? (
@@ -247,8 +264,10 @@ export default async function PlayerProfile({ params }: { params: Promise<{ id: 
                                             ) : (
                                                 eloChange > 0 ? (
                                                     <span className="text-green-500">+{eloChange}</span>
-                                                ) : (
+                                                ) : eloChange < 0 ? (
                                                     <span className="text-red-500">{eloChange}</span>
+                                                ) : (
+                                                    <span className="text-muted-foreground">{eloChange}</span>
                                                 )
                                             )}
                                         </TableCell>

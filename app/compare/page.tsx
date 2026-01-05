@@ -34,17 +34,25 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
         .order('createdAt', { ascending: false })
 
     // Calculate Stats
+    // Calculate Stats
     const totalMatches = matches?.length || 0
     let p1Wins = 0
     let p2Wins = 0
+    let draws = 0
 
     matches?.forEach((m: any) => {
-        if (m.winnerId === p1Id) p1Wins++
-        if (m.winnerId === p2Id) p2Wins++
+        if (m.player1Score === m.player2Score) {
+            draws++
+        } else if (m.winnerId === p1Id) {
+            p1Wins++
+        } else if (m.winnerId === p2Id) {
+            p2Wins++
+        }
     })
 
     const p1WinRate = totalMatches > 0 ? (p1Wins / totalMatches) * 100 : 0
     const p2WinRate = totalMatches > 0 ? (p2Wins / totalMatches) * 100 : 0
+    const drawRate = totalMatches > 0 ? (draws / totalMatches) * 100 : 0
 
     return (
         <div className="container mx-auto p-4 md:p-8 max-w-5xl space-y-8">
@@ -55,7 +63,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
 
             {/* VS Header */}
             <Card className="border-primary/20 bg-card/50 overflow-hidden relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-transparent to-red-500/10" />
+                <div className="absolute inset-0 bg-linear-to-r from-blue-500/10 via-transparent to-red-500/10" />
                 <CardContent className="p-8 relative z-10">
                     <div className="flex flex-col md:flex-row items-center justify-between gap-8">
                         {/* Player 1 */}
@@ -74,9 +82,11 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
                         {/* VS Stats */}
                         <div className="text-center space-y-2 min-w-[200px]">
                             <Swords className="w-16 h-16 mx-auto text-yellow-500 animate-pulse" />
-                            <div className="text-6xl font-black tracking-widest leading-none">
+                            <div className="text-6xl font-black tracking-widest leading-none flex items-center justify-center gap-4">
                                 <span className="text-blue-500">{p1Wins}</span>
-                                <span className="text-muted-foreground mx-2 text-4xl">-</span>
+                                <span className="text-zinc-500 text-4xl">-</span>
+                                <span className="text-zinc-400">{draws}</span>
+                                <span className="text-zinc-500 text-4xl">-</span>
                                 <span className="text-red-500">{p2Wins}</span>
                             </div>
                             <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground font-bold">
@@ -101,11 +111,13 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
                     {/* Win Rate Bar */}
                     <div className="mt-12 space-y-2">
                         <div className="flex justify-between text-sm font-bold uppercase tracking-wider">
-                            <span className="text-blue-400">{Math.round(p1WinRate)}% Win Rate</span>
-                            <span className="text-red-400">{Math.round(p2WinRate)}% Win Rate</span>
+                            <span className="text-blue-400">{Math.round(p1WinRate)}%</span>
+                            <span className="text-zinc-400">{Math.round(drawRate)}% Draw</span>
+                            <span className="text-red-400">{Math.round(p2WinRate)}%</span>
                         </div>
                         <div className="h-4 w-full bg-secondary rounded-full overflow-hidden flex">
                             <div className="h-full bg-blue-500 transition-all duration-1000" style={{ width: `${p1WinRate}%` }} />
+                            <div className="h-full bg-zinc-600 transition-all duration-1000" style={{ width: `${drawRate}%` }} />
                             <div className="h-full bg-red-500 transition-all duration-1000" style={{ width: `${p2WinRate}%` }} />
                         </div>
                     </div>
@@ -131,12 +143,18 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
                         </TableHeader>
                         <TableBody>
                             {matches?.map((match: any) => {
+                                const isDraw = match.player1Score === match.player2Score
                                 const isP1Win = match.winnerId === p1Id
+                                
                                 return (
                                     <TableRow key={match.id} className="hover:bg-muted/50">
                                         <TableCell>
                                             <div className="flex items-center gap-2 font-bold uppercase">
-                                                {isP1Win ? (
+                                                {isDraw ? (
+                                                     <span className="text-zinc-400 flex items-center gap-2">
+                                                        - DRAW -
+                                                    </span>
+                                                ) : isP1Win ? (
                                                     <span className="text-blue-400 flex items-center gap-2">
                                                         <Crown className="w-4 h-4" /> {p1.name}
                                                     </span>
@@ -148,9 +166,9 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-center font-mono text-xl">
-                                             <span className="text-blue-400">{match.player1Id === p1Id ? match.player1Score : match.player2Score}</span>
+                                             <span className={isDraw ? "text-zinc-400" : "text-blue-400"}>{match.player1Id === p1Id ? match.player1Score : match.player2Score}</span>
                                              <span className="mx-2">-</span>
-                                             <span className="text-red-500">{match.player1Id === p1Id ? match.player2Score : match.player1Score}</span>
+                                             <span className={isDraw ? "text-zinc-400" : "text-red-500"}>{match.player1Id === p1Id ? match.player2Score : match.player1Score}</span>
                                         </TableCell>
                                         <TableCell className="text-right text-muted-foreground text-sm">
                                             {new Date(match.createdAt).toLocaleDateString()}

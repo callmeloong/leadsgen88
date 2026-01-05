@@ -24,7 +24,7 @@ export function PendingMatches({ playerId, currentAuthId }: { playerId: string, 
                 player1:player1Id(name),
                 player2:player2Id(name)
             `)
-            .eq('status', 'PENDING')
+            .in('status', ['PENDING', 'WAITING_CONFIRMATION'])
             .or(`player1Id.eq.${playerId},player2Id.eq.${playerId}`)
         
         if (error) {
