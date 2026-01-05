@@ -172,8 +172,8 @@ export async function createMatch(player1Id: string, player2Id: string, player1S
             ? `⚠️ **KÈO MỚI!**\n\nNgười gửi: ${user.user_metadata?.name || 'Ai đó'}\nTrận đấu: ${p1.name} vs ${p2.name}\nTỉ số: ${player1Score} - ${player2Score}\n\n👉 Vào app xác nhận ngay!`
             : `✅ **KẾT QUẢ:**\n\n${p1.name} vs ${p2.name}\nTỉ số: ${player1Score} - ${player2Score}\n\nELO: ${p1.name} (${delta1 > 0 ? '+' : ''}${delta1}), ${p2.name} (${delta2 > 0 ? '+' : ''}${delta2})`
 
-        // Fire and forget - don't await to avoid slowing down response
-        sendTelegramMessage(notificationText)
+        // Await notification
+        await sendTelegramMessage(notificationText)
 
         // If Approved (Admin), Update Players immediately
         if (!isPending) {
@@ -275,7 +275,7 @@ export async function confirmMatch(matchId: string) {
     const p1Name = match.player1.name
     const p2Name = match.player2.name
     const msg = `✅ **KÈO ĐÃ CHỐT!**\n\n${p1Name} vs ${p2Name}\nTỉ số: ${match.player1Score} - ${match.player2Score}\n\nELO: ${p1Name} (${delta1 > 0 ? '+' : ''}${delta1}), ${p2Name} (${delta2 > 0 ? '+' : ''}${delta2})`
-    sendTelegramMessage(msg)
+    await sendTelegramMessage(msg)
 
     // Update Players
     await supabase.from('Player').update({
@@ -432,7 +432,8 @@ export async function issueChallenge(opponentId: string, message?: string, sched
     }
     msg += `\n\n👉 [Vào app để nhận kèo ngay!](https://leadsgen88.longth.dev)`
 
-    sendTelegramMessage(msg)
+    // Await to ensure delivery
+    await sendTelegramMessage(msg)
 
     revalidatePath('/')
     revalidatePath(`/player/${opponentId}`)
@@ -486,7 +487,7 @@ export async function respondChallenge(challengeId: string, accept: boolean) {
             return { error: "Lỗi khi tạo trận đấu Live" }
         }
 
-        sendTelegramMessage(`🔥 **KÈO ĐÃ NHẬN!**\n\n**${challenge.opponent.name}**: "Ok chiến luôn!"\nTrận đấu: **${challenge.challenger.name}** vs **${challenge.opponent.name}**.\n\n🔴 **LIVE MATCH IS READY!**\nAnh em chuẩn bị xem live tỉ số nhé! 🍿`)
+        await sendTelegramMessage(`🔥 **KÈO ĐÃ NHẬN!**\n\n**${challenge.opponent.name}**: "Ok chiến luôn!"\nTrận đấu: **${challenge.challenger.name}** vs **${challenge.opponent.name}**.\n\n🔴 **LIVE MATCH IS READY!**\nAnh em chuẩn bị xem live tỉ số nhé! 🍿`)
     } else {
         // Random taunt messages for rejection
         const taunts = [
@@ -499,7 +500,7 @@ export async function respondChallenge(challengeId: string, accept: boolean) {
         ]
         const randomTaunt = taunts[Math.floor(Math.random() * taunts.length)]
         const msg = `🚫 **KÈO BỊ TỪ CHỐI!**\n\n**${challenge.opponent.name}** đã từ chối lời thách đấu của **${challenge.challenger.name}**.\n\n> "${randomTaunt}"`
-        sendTelegramMessage(msg)
+        await sendTelegramMessage(msg)
     }
 
     revalidatePath('/')
@@ -609,7 +610,7 @@ export async function finishMatch(matchId: string) {
         let msg = `⚠️ **XÁC NHẬN KẾT QUẢ**\n\n**${submitterName}** báo cáo tỉ số:\n**${match.player1.name}** ${match.player1Score} - ${match.player2Score} **${match.player2.name}**\n\n👉 ${opponent.name} vui lòng vào xác nhận!`
 
         if (opponent.telegram) msg += ` (@${opponent.telegram})`
-        sendTelegramMessage(msg)
+        await sendTelegramMessage(msg)
 
         revalidatePath(`/live/${matchId}`)
         return { success: true, message: "Đã gửi yêu cầu xác nhận!" }
@@ -657,7 +658,7 @@ export async function finishMatch(matchId: string) {
 
         // Notify
         const msg = `🏁 **TRẬN ĐẤU KẾT THÚC!**\n\n**${p1.name}** vs **${p2.name}**\nTỉ số: ${match.player1Score} - ${match.player2Score}\n\nELO Update: ${p1.name} (${delta1 > 0 ? '+' : ''}${delta1}), ${p2.name} (${delta2 > 0 ? '+' : ''}${delta2})`
-        sendTelegramMessage(msg)
+        await sendTelegramMessage(msg)
 
         // Update Players
         await supabase.from('Player').update({

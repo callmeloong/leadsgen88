@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { updateMatchScore, finishMatch } from '@/app/actions'
 import { useRouter } from 'next/navigation'
-import { Trophy, ArrowLeft, Minus, Plus, Loader2 } from 'lucide-react'
+import { Trophy, ArrowLeft, Minus, Plus, Loader2, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 
 export default function LiveMatchPage({ params }: { params: Promise<{ id: string }> }) {
@@ -145,6 +145,32 @@ export default function LiveMatchPage({ params }: { params: Promise<{ id: string
                 
                 {isParticipant ? (
                     <div className="flex gap-2">
+                         {/* Cancel Button (Trash) */}
+                         <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-zinc-500 hover:text-red-500 hover:bg-red-500/10"
+                            title="Huỷ trận đấu"
+                            disabled={updating}
+                            onClick={async () => {
+                                if (confirm("Bạn có chắc muốn huỷ trận đấu này? Dữ liệu sẽ bị xoá vĩnh viễn.")) {
+                                    setUpdating(true)
+                                    // Use imported rejectMatch
+                                    const { rejectMatch } = await import('@/app/actions')
+                                    const res = await rejectMatch(match.id)
+                                    if (res.error) {
+                                        toast.error(res.error)
+                                        setUpdating(false)
+                                    } else {
+                                        toast.success("Đã huỷ trận đấu")
+                                        router.push('/')
+                                    }
+                                }
+                            }}
+                        >
+                            <Trash2 className="w-4 h-4" />
+                        </Button>
+
                         {isWaiting ? (
                              isSubmitter ? (
                                 <Button disabled size="sm" className="h-8 text-xs bg-yellow-500/20 text-yellow-500 border border-yellow-500/50">
@@ -164,7 +190,7 @@ export default function LiveMatchPage({ params }: { params: Promise<{ id: string
                             <Button 
                                 variant="destructive" 
                                 size="sm" 
-                                className="h-8 text-xs"
+                                className="h-8 text-xs bg-red-600/20 text-red-500 border border-red-900 hover:bg-red-600 hover:text-white transition-all shadow-[0_0_10px_rgba(220,38,38,0.2)] hover:shadow-[0_0_15px_rgba(220,38,38,0.5)]"
                                 onClick={handleFinish}
                                 disabled={updating}
                             >
@@ -180,7 +206,8 @@ export default function LiveMatchPage({ params }: { params: Promise<{ id: string
             </div>
 
             {/* Split Screen Content - Responsive Flex */}
-            <div className="flex-1 flex flex-col landscape:flex-row md:flex-row relative">
+            {/* ENABLE SCROLL: Changed h-screen/overflow-hidden to min-h-screen/overflow-y-auto */}
+            <div className="flex-1 flex flex-col landscape:flex-row md:flex-row relative min-h-0 overflow-y-auto">
                 {/* Player 1 Section */}
                 <div className="flex-1 bg-blue-950/20 border-b landscape:border-b-0 landscape:border-r md:border-b-0 md:border-r border-zinc-800 flex flex-col items-center justify-center relative overflow-hidden group">
                     <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-10 transition-opacity" />
