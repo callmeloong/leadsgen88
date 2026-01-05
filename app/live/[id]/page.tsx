@@ -132,7 +132,7 @@ export default function LiveMatchPage({ params }: { params: Promise<{ id: string
     const isSubmitter = match.submitterId === user?.id
 
     return (
-        <div className="h-screen w-full bg-zinc-950 text-white flex flex-col overflow-hidden fixed inset-0">
+        <div className="h-[100dvh] w-full bg-zinc-950 text-white flex flex-col overflow-hidden fixed inset-0">
             {/* Header - Compact */}
             <div className="shrink-0 h-14 px-4 flex items-center justify-between bg-zinc-900/50 border-b border-zinc-800 z-50 relative">
                 <Link href="/" className="text-zinc-400 hover:text-white p-2 -ml-2">
@@ -209,35 +209,37 @@ export default function LiveMatchPage({ params }: { params: Promise<{ id: string
             {/* ENABLE SCROLL: Changed h-screen/overflow-hidden to min-h-screen/overflow-y-auto */}
             <div className="flex-1 flex flex-col landscape:flex-row md:flex-row relative min-h-0 overflow-y-auto">
                 {/* Player 1 Section */}
-                <div className="flex-1 bg-blue-950/20 border-b landscape:border-b-0 landscape:border-r md:border-b-0 md:border-r border-zinc-800 flex flex-col items-center justify-center relative group min-h-min py-4 landscape:py-0">
-                    <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-10 transition-opacity" />
+                <div className="flex-1 bg-blue-950/20 border-b landscape:border-b-0 landscape:border-r md:border-b-0 md:border-r border-zinc-800 flex flex-col items-center justify-between relative group min-h-min py-4 landscape:py-2">
+                    <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-10 transition-opacity pointer-events-none" />
                     
                     {/* Name */}
-                    <h2 className="text-2xl landscape:text-xl md:text-5xl font-black text-blue-400 text-center uppercase tracking-tight z-10 mt-4 md:mt-0 truncate max-w-full px-4">
-                        {match.player1.name}
-                    </h2>
+                    <div className="flex-shrink-0 z-10 w-full px-4 text-center">
+                         <h2 className="text-2xl landscape:text-lg md:text-5xl font-black text-blue-400 uppercase tracking-tight truncate max-w-full">
+                            {match.player1.name}
+                        </h2>
+                    </div>
                     
                     {/* Score - Reduced for Landscape */}
-                    <div className="flex-1 flex items-center justify-center z-10 w-full">
-                         <div className="text-[35vh] landscape:text-[25vh] md:text-[180px] font-handjet leading-none text-blue-500 drop-shadow-[0_0_15px_rgba(59,130,246,0.5)] select-none">
+                    <div className="flex-1 flex items-center justify-center z-10 w-full min-h-0">
+                         <div className="text-[30vh] landscape:text-[25dvh] md:text-[180px] font-handjet leading-none text-blue-500 drop-shadow-[0_0_15px_rgba(59,130,246,0.5)] select-none">
                             {match.player1Score}
                         </div>
                     </div>
 
                     {/* Controls - Compact */}
                     {isParticipant && !isWaiting && (
-                        <div className="flex gap-8 mb-6 landscape:mb-2 md:mb-12 z-20">
+                        <div className="flex gap-8 landscape:gap-12 mb-6 landscape:mb-2 md:mb-12 z-20 flex-shrink-0">
                             <button 
                                 onClick={() => handleUpdateScore(-1, 0)}
-                                className="w-14 h-14 landscape:w-12 landscape:h-12 md:w-20 md:h-20 rounded-full bg-zinc-900 border-2 border-zinc-700 flex items-center justify-center text-zinc-400 hover:text-white hover:border-zinc-500 hover:bg-zinc-800 transition-all active:scale-95 touch-manipulation"
+                                className="w-14 h-14 landscape:w-10 landscape:h-10 md:w-20 md:h-20 rounded-full bg-zinc-900 border-2 border-zinc-700 flex items-center justify-center text-zinc-400 hover:text-white hover:border-zinc-500 hover:bg-zinc-800 transition-all active:scale-95 touch-manipulation"
                             >
-                                <Minus className="w-6 h-6 landscape:w-5 landscape:h-5 md:w-8 md:h-8" />
+                                <Minus className="w-6 h-6 landscape:w-4 landscape:h-4 md:w-8 md:h-8" />
                             </button>
                             <button 
                                 onClick={() => handleUpdateScore(1, 0)}
-                                className="w-14 h-14 landscape:w-12 landscape:h-12 md:w-20 md:h-20 rounded-full bg-blue-600 border-2 border-blue-400 flex items-center justify-center text-white shadow-[0_0_20px_rgba(37,99,235,0.3)] hover:bg-blue-500 hover:scale-105 transition-all active:scale-95 touch-manipulation"
+                                className="w-14 h-14 landscape:w-10 landscape:h-10 md:w-20 md:h-20 rounded-full bg-blue-600 border-2 border-blue-400 flex items-center justify-center text-white shadow-[0_0_20px_rgba(37,99,235,0.3)] hover:bg-blue-500 hover:scale-105 transition-all active:scale-95 touch-manipulation"
                             >
-                                <Plus className="w-8 h-8 landscape:w-6 landscape:h-6 md:w-10 md:h-10" />
+                                <Plus className="w-8 h-8 landscape:w-4 landscape:h-4 md:w-10 md:h-10" />
                             </button>
                         </div>
                     )}
@@ -249,35 +251,37 @@ export default function LiveMatchPage({ params }: { params: Promise<{ id: string
                 </div>
 
                 {/* Player 2 Section */}
-                <div className="flex-1 bg-red-950/20 flex flex-col items-center justify-center relative group min-h-min py-4 landscape:py-0">
-                     <div className="absolute inset-0 bg-red-500/5 opacity-0 group-hover:opacity-10 transition-opacity" />
+                <div className="flex-1 bg-red-950/20 flex flex-col items-center justify-between relative group min-h-min py-4 landscape:py-2">
+                     <div className="absolute inset-0 bg-red-500/5 opacity-0 group-hover:opacity-10 transition-opacity pointer-events-none" />
 
                     {/* Name */}
-                    <h2 className="text-2xl landscape:text-xl md:text-5xl font-black text-red-400 text-center uppercase tracking-tight z-10 mt-4 md:mt-0 truncate max-w-full px-4">
-                        {match.player2.name}
-                    </h2>
+                     <div className="flex-shrink-0 z-10 w-full px-4 text-center">
+                        <h2 className="text-2xl landscape:text-lg md:text-5xl font-black text-red-400 text-center uppercase tracking-tight truncate max-w-full">
+                            {match.player2.name}
+                        </h2>
+                     </div>
 
                     {/* Score */}
-                    <div className="flex-1 flex items-center justify-center z-10 w-full">
-                        <div className="text-[35vh] landscape:text-[25vh] md:text-[180px] font-handjet leading-none text-red-500 drop-shadow-[0_0_15px_rgba(239,68,68,0.5)] select-none">
+                    <div className="flex-1 flex items-center justify-center z-10 w-full min-h-0">
+                        <div className="text-[30vh] landscape:text-[25dvh] md:text-[180px] font-handjet leading-none text-red-500 drop-shadow-[0_0_15px_rgba(239,68,68,0.5)] select-none">
                             {match.player2Score}
                         </div>
                     </div>
 
                     {/* Controls */}
                     {isParticipant && !isWaiting && (
-                        <div className="flex gap-8 mb-6 landscape:mb-2 md:mb-12 z-20">
+                        <div className="flex gap-8 landscape:gap-12 mb-6 landscape:mb-2 md:mb-12 z-20 flex-shrink-0">
                              <button 
                                 onClick={() => handleUpdateScore(0, -1)}
-                                className="w-14 h-14 landscape:w-12 landscape:h-12 md:w-20 md:h-20 rounded-full bg-zinc-900 border-2 border-zinc-700 flex items-center justify-center text-zinc-400 hover:text-white hover:border-zinc-500 hover:bg-zinc-800 transition-all active:scale-95 touch-manipulation"
+                                className="w-14 h-14 landscape:w-10 landscape:h-10 md:w-20 md:h-20 rounded-full bg-zinc-900 border-2 border-zinc-700 flex items-center justify-center text-zinc-400 hover:text-white hover:border-zinc-500 hover:bg-zinc-800 transition-all active:scale-95 touch-manipulation"
                             >
-                                <Minus className="w-6 h-6 landscape:w-5 landscape:h-5 md:w-8 md:h-8" />
+                                <Minus className="w-6 h-6 landscape:w-4 landscape:h-4 md:w-8 md:h-8" />
                             </button>
                             <button 
                                 onClick={() => handleUpdateScore(0, 1)}
-                                className="w-14 h-14 landscape:w-12 landscape:h-12 md:w-20 md:h-20 rounded-full bg-red-600 border-2 border-red-400 flex items-center justify-center text-white shadow-[0_0_20px_rgba(220,38,38,0.3)] hover:bg-red-500 hover:scale-105 transition-all active:scale-95 touch-manipulation"
+                                className="w-14 h-14 landscape:w-10 landscape:h-10 md:w-20 md:h-20 rounded-full bg-red-600 border-2 border-red-400 flex items-center justify-center text-white shadow-[0_0_20px_rgba(220,38,38,0.3)] hover:bg-red-500 hover:scale-105 transition-all active:scale-95 touch-manipulation"
                             >
-                                <Plus className="w-8 h-8 landscape:w-6 landscape:h-6 md:w-10 md:h-10" />
+                                <Plus className="w-8 h-8 landscape:w-4 landscape:h-4 md:w-10 md:h-10" />
                             </button>
                         </div>
                     )}
