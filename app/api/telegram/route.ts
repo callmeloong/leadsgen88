@@ -83,24 +83,47 @@ async function handleScheduleCommand(chatId: number) {
 async function handleLeaderboardCommand(chatId: number) {
     const supabase = createAdminClient()
 
-    // Fetch Top 10
+    // Fetch All to sort correctly
     const { data: players, error } = await supabase
         .from('Player')
         .select('*')
-        .order('elo', { ascending: false })
-        .limit(10)
 
     if (error || !players || players.length === 0) {
         await sendMessage(chatId, "❌ Hiện chưa có dữ liệu bảng xếp hạng.")
         return
     }
 
+    // Sort: Ranked (ELO desc) -> Unranked (Name asc)
+    const sortedPlayers = players.sort((a, b) => {
+        const aPlayed = a.wins + a.losses > 0
+        const bPlayed = b.wins + b.losses > 0
+
+        if (aPlayed && !bPlayed) return -1
+        if (!aPlayed && bPlayed) return 1
+
+        if (aPlayed && bPlayed) {
+            if (b.elo !== a.elo) return b.elo - a.elo
+            return b.wins - a.wins
+        }
+
+        return a.name.localeCompare(b.name)
+    })
+
+    const top10 = sortedPlayers.slice(0, 10)
+
     let message = "🏆 **BẢNG XẾP HẠNG TOP 10** 🏆\n\n"
 
-    players.forEach((p, index) => {
-        const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`
+    top10.forEach((p, index) => {
+        const isUnranked = p.wins + p.losses === 0
+        const medal = index === 0 && !isUnranked ? '🥇' : index === 1 && !isUnranked ? '🥈' : index === 2 && !isUnranked ? '🥉' : `#${index + 1}`
+
         message += `${medal} **${p.name}**\n`
-        message += `   ⚜️ ELO: ${p.elo} | ⚔️ W/L: ${p.wins}/${p.losses}\n\n`
+
+        if (isUnranked) {
+            message += `   ⚜️ ELO: --- | ⚔️ W/L: ---\n\n`
+        } else {
+            message += `   ⚜️ ELO: ${p.elo} | ⚔️ W/L: ${p.wins}/${p.losses}\n\n`
+        }
     })
 
     message += "👉 Xem chi tiết tại: [PoolRank App](https://leadsgen88.longth.dev)"
