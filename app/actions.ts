@@ -717,3 +717,90 @@ export async function initializeLiveMatch(challengeId: string) {
 
     redirect(`/live/${newMatch.id}`)
 }
+
+export async function issueOpenChallenge(message?: string, scheduledTime?: string) {
+    const cookieStore = await cookies()
+    const supabase = createClient(cookieStore)
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) return { error: "Bạn chưa đăng nhập" }
+
+    // Fetch Caller Player ID
+    const { data: challenger } = await supabase.from('Player').select('*').eq('email', user.email).single()
+    if (!challenger) return { error: "Không tìm thấy thông tin người chơi của bạn" }
+
+    // Create Open Challenge (opponentId is null)
+    // We use 'OPEN' status to distinguish easily, assuming DB allows it or we use String type.
+    // If DB is strict Enum, user might need to add 'OPEN'.
+    const { error } = await supabase.from('Challenge').insert({
+        challengerId: challenger.id,
+        opponentId: null, // Open Challenge
+        status: 'OPEN',
+        message: message,
+        scheduled_time: scheduledTime ? new Date(scheduledTime).toISOString() : null
+    })
+
+    if (error) {
+        console.error("Open Challenge Error:", error)
+        return { error: "Lỗi khi tạo kèo (Có thể do chưa update DB Enum?)" }
+    }
+
+    // Notify Telegram channel about the "Kèo Thơm"
+    let msg = `🔥 \u003cb\u003eKÈO THƠM (OPEN CHALLENGE)!\u003c/b\u003e\n\n\u003cb\u003e${escapeHtml(challenger.name)}\u003c/b\u003e vừa tung ra một lời thách đấu mở!`
+
+    if (scheduledTime) {
+        const date = new Date(scheduledTime)
+        const timeStr = date.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Ho_Chi_Minh' })
+        msg += `\n\n⏰ Thời gian: \u003cb\u003e${timeStr}\u003c/b\u003e`
+    }
+
+    if (message) {
+        msg += `\n💬 Lời nhắn: "${escapeHtml(message)}"`
+    }
+
+    msg += `\n\n🚀 \u003ca href="https://leadsgen88.longth.dev"\u003eVào nhận kèo ngay kẻo lỡ!\u003c/a\u003e`
+
+    await sendTelegramMessage(msg)
+
+    revalidatePath('/')
+    return { success: true }
+}
+
+export async function acceptOpenChallenge(challengeId: string) {
+    const cookieStore = await cookies()
+    const supabase = createClient(cookieStore)
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: "Unauthorized" }
+
+    const { data: player } = await supabase.from('Player').select('*').eq('email', user.email).single()
+    if (!player) return { error: "Player not found" }
+
+    // Transaction-like check: Update only if opponentId is NULL
+    const { data: challenge, error } = await supabase
+        .from('Challenge')
+        .update({
+            opponentId: player.id,
+            status: 'ACCEPTED'
+        })
+        .eq('id', challengeId)
+        .is('opponentId', null) // Ensure it's still open
+        .select(`
+            *,
+            challenger:challengerId(name, telegram)
+        `)
+        .single()
+
+    if (error || !challenge) {
+        return { error: "Kèo này đã bị người khác nhận hoặc không tồn tại!" }
+    }
+
+    // Notify Telegram
+    let msg = `✅ \u003cb\u003eKÈO ĐÃ ĐƯỢC NHẬN!\u003c/b\u003e\n\n\u003cb\u003e${escapeHtml(player.name)}\u003c/b\u003e đã chấp nhận lời thách đấu của \u003cb\u003e${escapeHtml(challenge.challenger.name)}\u003c/b\u003e.`
+    msg += `\n\nTrận đấu đã được lên lịch!`
+
+    await sendTelegramMessage(msg)
+
+    revalidatePath('/')
+    return { success: true }
+}
