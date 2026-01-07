@@ -29,7 +29,10 @@ export function OpenChallengeButton() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     startTransition(async () => {
-      const result = await issueOpenChallenge(message, scheduledTime);
+      const formattedTime = scheduledTime
+        ? new Date(scheduledTime).toISOString()
+        : undefined;
+      const result = await issueOpenChallenge(message, formattedTime);
       if (result.error) {
         toast.error(result.error);
       } else {
@@ -162,11 +165,16 @@ export function OpenChallengeList({
                   </div>
                 )}
 
-                {challenge.scheduled_time && (
+                {challenge.scheduled_time ? (
                   <div className="text-sm flex items-center gap-2 text-destructive">
                     <Clock className="w-4 h-4" />
                     Scheduled:{" "}
                     {new Date(challenge.scheduled_time).toLocaleString()}
+                  </div>
+                ) : (
+                  <div className="text-sm flex items-center gap-2 text-green-500 font-bold animate-pulse">
+                    <Clock className="w-4 h-4" />
+                    Lúc nào cũng oke!
                   </div>
                 )}
 

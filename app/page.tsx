@@ -121,8 +121,15 @@ export default async function Home() {
     )
     .eq("status", "OPEN")
     .is("opponentId", null)
-    .gt("scheduled_time", now) // Only future or current ones
+    .eq("status", "OPEN")
+    .is("opponentId", null)
     .order("createdAt", { ascending: false });
+
+  const validOpenChallenges =
+    openChallenges?.filter((c) => {
+      if (!c.scheduled_time) return true; // "Lúc nào cũng oke!"
+      return new Date(c.scheduled_time).getTime() > nowTime; // Future only
+    }) || [];
 
   return (
     <div className="container mx-auto p-4 md:p-8 space-y-8 max-w-7xl">
@@ -184,7 +191,7 @@ export default async function Home() {
             </CardHeader>
             <CardContent>
               <OpenChallengeList
-                challenges={openChallenges || []}
+                challenges={validOpenChallenges}
                 currentUserId={currentPlayer?.id || ""}
               />
               <Table>
