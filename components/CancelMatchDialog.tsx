@@ -98,7 +98,6 @@ export function CancelMatchDialog({
                   Đối thủ được cộng{" "}
                   <span className="font-bold text-green-400">20 Elo</span>.
                 </li>
-                <li>Trận đấu sẽ bị đánh dấu là CANCELLED.</li>
               </ul>
             </div>
           </DialogDescription>
