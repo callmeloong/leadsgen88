@@ -29,13 +29,23 @@ export function ChallengeButton({
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
+  const [gameType, setGameType] = useState("8 Ball");
+  const [raceTo, setRaceTo] = useState(0);
+  const [handicap, setHandicap] = useState(0);
 
   const handleChallenge = async () => {
     setLoading(true);
     const formattedTime = scheduledTime
       ? new Date(scheduledTime).toISOString()
       : undefined;
-    const res = await issueChallenge(player.id, message, formattedTime);
+    const res = await issueChallenge(
+      player.id,
+      message,
+      formattedTime,
+      gameType,
+      raceTo,
+      handicap
+    );
     setLoading(false);
     setOpen(false);
 
@@ -76,24 +86,69 @@ export function ChallengeButton({
             className="bg-card/50"
           />
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-muted-foreground">
-              Thời gian thi đấu (Tùy chọn)
-            </label>
-            <input
-              type="datetime-local"
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [color-scheme:dark]"
-              onChange={(e) => setScheduledTime(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              *Bot sẽ nhắc trước 30 phút.
-            </p>
-          </div>
-
-          <p className="text-xs text-muted-foreground mt-2">
-            *Tin nhắn sẽ được gửi cùng thông báo tới Telegram.
+          <label className="text-sm font-medium text-muted-foreground">
+            Thời gian thi đấu (Tùy chọn)
+          </label>
+          <input
+            type="datetime-local"
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 scheme-dark"
+            onChange={(e) => setScheduledTime(e.target.value)}
+          />
+          <p className="text-xs text-muted-foreground">
+            *Bot sẽ nhắc trước 30 phút.
           </p>
         </div>
+
+        {/* Game Settings */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground">
+              Thể thức
+            </label>
+            <select
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              value={gameType}
+              onChange={(e) => setGameType(e.target.value)}
+            >
+              <option value="8 Ball">8 Ball</option>
+              <option value="9 Ball">9 Ball</option>
+              <option value="10 Ball">10 Ball</option>
+            </select>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground">
+              Chạm (Race)
+            </label>
+            <input
+              type="number"
+              placeholder="0 = Tự do"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              value={raceTo}
+              onChange={(e) => setRaceTo(Number(e.target.value))}
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-muted-foreground">
+            Chấp (Handicap)
+          </label>
+          <input
+            type="number"
+            placeholder="Số ván bạn chấp đối thủ (VD: 2)"
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            value={handicap}
+            onChange={(e) => setHandicap(Number(e.target.value))}
+          />
+          <p className="text-xs text-muted-foreground">
+            *Khi vào trận, đối thủ sẽ được cộng sẵn{" "}
+            {handicap > 0 ? handicap : 0} điểm.
+          </p>
+        </div>
+
+        <p className="text-xs text-muted-foreground mt-2">
+          *Tin nhắn sẽ được gửi cùng thông báo tới Telegram.
+        </p>
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => setOpen(false)}>

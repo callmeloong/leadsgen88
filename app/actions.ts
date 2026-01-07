@@ -400,7 +400,7 @@ export async function updateProfile(playerId: string, name: string, nickname: st
     return { success: true }
 }
 
-export async function issueChallenge(opponentId: string, message?: string, scheduledTime?: string) {
+export async function issueChallenge(opponentId: string, message?: string, scheduledTime?: string, gameType?: string, raceTo?: number, handicap?: number) {
     const cookieStore = await cookies()
     const supabase = createClient(cookieStore)
 
@@ -422,7 +422,10 @@ export async function issueChallenge(opponentId: string, message?: string, sched
         opponentId: opponentId,
         status: 'PENDING',
         message: message,
-        scheduled_time: scheduledTime ? new Date(scheduledTime).toISOString() : null
+        scheduled_time: scheduledTime ? new Date(scheduledTime).toISOString() : null,
+        game_type: gameType,
+        race_to: raceTo,
+        handicap: handicap
     })
 
     if (error) return { error: "Lỗi khi gửi lời thách đấu" }
@@ -434,6 +437,10 @@ export async function issueChallenge(opponentId: string, message?: string, sched
     }
 
     let msg = `⚔️ <b>LỜI TUYÊN CHIẾN!</b>\n\n<b>${escapeHtml(challenger.name)}</b> vừa thách đấu ${opponentName}.`
+
+    if (gameType) msg += `\n🎱 Thể thức: <b>${escapeHtml(gameType)}</b>`
+    if (raceTo && raceTo > 0) msg += `\n🎯 Chạm: <b>${raceTo}</b>`
+    if (handicap && handicap > 0) msg += `\n⚖️ Chấp: <b>${handicap} ván</b> (cho đối thủ)`
 
     if (scheduledTime) {
         const date = new Date(scheduledTime)
@@ -487,11 +494,14 @@ export async function respondChallenge(challengeId: string, accept: boolean) {
     // Notify Telegram
     if (accept) {
         // Create a LIVE match automatically
+        // Apply Handicap: Player 2 (Opponent) starts with Handicap Score
+        const initialP2Score = challenge.handicap || 0
+
         const { error: matchError } = await supabase.from('Match').insert({
             player1Id: challenge.challengerId,
             player2Id: challenge.opponentId,
             player1Score: 0,
-            player2Score: 0,
+            player2Score: initialP2Score,
             status: 'LIVE',
             scheduled_time: challenge.scheduled_time
         })
@@ -501,7 +511,15 @@ export async function respondChallenge(challengeId: string, accept: boolean) {
             return { error: "Lỗi khi tạo trận đấu Live" }
         }
 
-        await sendTelegramMessage(`🔥 <b>KÈO ĐÃ NHẬN!</b>\n\n<b>${escapeHtml(challenge.opponent.name)}</b>: "Ok chiến luôn!"\nTrận đấu: <b>${escapeHtml(challenge.challenger.name)}</b> vs <b>${escapeHtml(challenge.opponent.name)}</b>.\n\n🔴 <b>LIVE MATCH IS READY!</b>\nAnh em chuẩn bị xem live tỉ số nhé! 🍿`)
+        let msg = `🔥 <b>KÈO ĐÃ NHẬN!</b>\n\n<b>${escapeHtml(challenge.opponent.name)}</b>: "Ok chiến luôn!"\nTrận đấu: <b>${escapeHtml(challenge.challenger.name)}</b> vs <b>${escapeHtml(challenge.opponent.name)}</b>.`
+
+        if (challenge.game_type) msg += `\n🎱 ${challenge.game_type}`
+        if (challenge.race_to) msg += ` | 🎯 Chạm ${challenge.race_to}`
+        if (initialP2Score > 0) msg += ` | ⚖️ Chấp ${initialP2Score}`
+
+        msg += `\n\n🔴 <b>LIVE MATCH IS READY!</b>\nAnh em chuẩn bị xem live tỉ số nhé! 🍿`
+
+        await sendTelegramMessage(msg)
     } else {
         // Random taunt messages for rejection
         const taunts = [
@@ -716,11 +734,13 @@ export async function initializeLiveMatch(challengeId: string) {
     }
 
     // Create New Match
+    const initialP2Score = challenge.handicap || 0
+
     const { data: newMatch, error } = await supabase.from('Match').insert({
         player1Id: challenge.challengerId,
         player2Id: challenge.opponentId,
         player1Score: 0,
-        player2Score: 0,
+        player2Score: initialP2Score,
         status: 'LIVE',
         scheduled_time: challenge.scheduled_time
     }).select().single()
@@ -732,7 +752,7 @@ export async function initializeLiveMatch(challengeId: string) {
     redirect(`/live/${newMatch.id}`)
 }
 
-export async function issueOpenChallenge(message?: string, scheduledTime?: string) {
+export async function issueOpenChallenge(message?: string, scheduledTime?: string, gameType?: string, raceTo?: number, handicap?: number) {
     const cookieStore = await cookies()
     const supabase = createClient(cookieStore)
 
@@ -744,23 +764,28 @@ export async function issueOpenChallenge(message?: string, scheduledTime?: strin
     if (!challenger) return { error: "Không tìm thấy thông tin người chơi của bạn" }
 
     // Create Open Challenge (opponentId is null)
-    // We use 'OPEN' status to distinguish easily, assuming DB allows it or we use String type.
-    // If DB is strict Enum, user might need to add 'OPEN'.
     const { error } = await supabase.from('Challenge').insert({
         challengerId: challenger.id,
         opponentId: null, // Open Challenge
         status: 'OPEN',
         message: message,
-        scheduled_time: scheduledTime ? new Date(scheduledTime).toISOString() : null
+        scheduled_time: scheduledTime ? new Date(scheduledTime).toISOString() : null,
+        game_type: gameType,
+        race_to: raceTo,
+        handicap: handicap
     })
 
     if (error) {
         console.error("Open Challenge Error:", error)
-        return { error: "Lỗi khi tạo kèo (Có thể do chưa update DB Enum?)" }
+        return { error: "Lỗi khi tạo kèo" }
     }
 
     // Notify Telegram channel about the "Kèo Thơm"
     let msg = `🔥 \u003cb\u003eKÈO THƠM (OPEN CHALLENGE)!\u003c/b\u003e\n\n\u003cb\u003e${escapeHtml(challenger.name)}\u003c/b\u003e vừa tung ra một lời thách đấu mở!`
+
+    if (gameType) msg += `\n🎱 Thể thức: <b>${escapeHtml(gameType)}</b>`
+    if (raceTo && raceTo > 0) msg += `\n🎯 Chạm: <b>${raceTo}</b>`
+    if (handicap && handicap > 0) msg += `\n⚖️ Chấp: <b>${handicap} ván</b> (cho đối thủ)`
 
     if (scheduledTime) {
         const date = new Date(scheduledTime)
