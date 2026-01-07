@@ -1,15 +1,15 @@
 // Imports at top
 import { Trash2 } from "lucide-react";
 import { CancelMatchDialog } from "./CancelMatchDialog";
-import { toast } from "sonner";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+import Link from "next/link";
+import { Badge } from "./ui/badge";
 
 export function LiveMatches() {
   const [matches, setMatches] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
   const supabase = createClient();
-  const router = useRouter();
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -80,7 +80,7 @@ export function LiveMatches() {
             <div key={match.id} className="relative group">
               <Link href={`/live/${match.id}`}>
                 <div className="bg-zinc-900/80 border border-zinc-800 p-4 rounded-xl hover:border-red-500/50 transition-all cursor-pointer relative overflow-hidden h-full">
-                  <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-red-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="absolute inset-0 bg-linear-to-r from-blue-500/5 to-red-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
 
                   <div className="flex justify-between items-center relative z-10">
                     <div className="text-center flex-1">
