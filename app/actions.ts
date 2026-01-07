@@ -13,15 +13,29 @@ export async function getPlayers() {
     const { data, error } = await supabase
         .from('Player')
         .select('*')
-        .order('elo', { ascending: false })
-        .order('wins', { ascending: false })
 
     if (error) {
         console.error('Error fetching players:', error)
         return []
     }
 
-    return data
+    // Sort in memory: Ranked (by ELO desc) -> Unranked (by Date desc)
+    return (data || []).sort((a, b) => {
+        const aPlayed = a.wins + a.losses > 0
+        const bPlayed = b.wins + b.losses > 0
+
+        if (aPlayed && !bPlayed) return -1
+        if (!aPlayed && bPlayed) return 1
+
+        if (aPlayed && bPlayed) {
+            // Both ranked: Sort by ELO descending
+            if (b.elo !== a.elo) return b.elo - a.elo
+            return b.wins - a.wins // Tie-break by wins
+        }
+
+        // Both unranked: Sort by Name (or created_at)
+        return a.name.localeCompare(b.name)
+    })
 }
 
 import { createAdminClient } from '@/lib/supabase/admin'

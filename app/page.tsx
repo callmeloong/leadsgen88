@@ -208,68 +208,87 @@ export default async function Home() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {players.map((player: any, index: number) => (
-                    <TableRow
-                      key={player.id}
-                      className="text-2xl hover:bg-muted/50 transition-colors border-primary/10 group relative"
-                    >
-                      <TableCell className="font-bold text-muted-foreground">
-                        #{index + 1}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-between gap-4">
-                          <div className="flex items-center gap-4">
-                            {index === 0 && (
-                              <Crown className="w-6 h-6 text-yellow-500" />
-                            )}
-                            <Link
-                              href={`/player/${player.id}`}
-                              className="font-bold tracking-wide uppercase hover:underline hover:text-primary transition-colors"
-                            >
-                              <PlayerNameDisplay
-                                name={player.name}
-                                nickname={player.nickname}
-                                placement={player.nickname_placement}
-                              />
-                            </Link>
-                          </div>
+                  {players.map((player: any, index: number) => {
+                    const isUnranked = player.wins + player.losses === 0;
 
-                          {currentPlayer && currentPlayer.id !== player.id && (
-                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                    return (
+                      <TableRow
+                        key={player.id}
+                        className="text-2xl hover:bg-muted/50 transition-colors border-primary/10 group relative"
+                      >
+                        <TableCell className="font-bold text-muted-foreground">
+                          {isUnranked ? "---" : `#${index + 1}`}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-4">
+                              {index === 0 && !isUnranked && (
+                                <Crown className="w-6 h-6 text-yellow-500" />
+                              )}
                               <Link
-                                href={`/compare?player1=${currentPlayer.id}&player2=${player.id}`}
-                                className="p-2 rounded-full hover:bg-secondary text-muted-foreground hover:text-primary transition-colors"
-                                title="So sánh Head-to-Head"
+                                href={`/player/${player.id}`}
+                                className="font-bold tracking-wide uppercase hover:underline hover:text-primary transition-colors"
                               >
-                                <Activity className="w-5 h-5" />
+                                <PlayerNameDisplay
+                                  name={player.name}
+                                  nickname={player.nickname}
+                                  placement={player.nickname_placement}
+                                />
                               </Link>
-
-                              <ChallengeButton
-                                player={player}
-                                customTrigger={
-                                  <button
-                                    className="p-2 rounded-full hover:bg-red-600/10 text-muted-foreground hover:text-red-500 transition-colors"
-                                    title="Thách đấu ngay"
-                                  >
-                                    <Swords className="w-5 h-5" />
-                                  </button>
-                                }
-                              />
                             </div>
+
+                            {currentPlayer &&
+                              currentPlayer.id !== player.id && (
+                                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                  <Link
+                                    href={`/compare?player1=${currentPlayer.id}&player2=${player.id}`}
+                                    className="p-2 rounded-full hover:bg-secondary text-muted-foreground hover:text-primary transition-colors"
+                                    title="So sánh Head-to-Head"
+                                  >
+                                    <Activity className="w-5 h-5" />
+                                  </Link>
+
+                                  <ChallengeButton
+                                    player={player}
+                                    customTrigger={
+                                      <button
+                                        className="p-2 rounded-full hover:bg-red-600/10 text-muted-foreground hover:text-red-500 transition-colors"
+                                        title="Thách đấu ngay"
+                                      >
+                                        <Swords className="w-5 h-5" />
+                                      </button>
+                                    }
+                                  />
+                                </div>
+                              )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right font-bold text-3xl text-primary">
+                          {isUnranked ? (
+                            <span className="text-muted-foreground text-xl">
+                              ---
+                            </span>
+                          ) : (
+                            player.elo
                           )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right font-bold text-3xl text-primary">
-                        {player.elo}
-                      </TableCell>
-                      <TableCell className="text-right font-bold text-green-500">
-                        {player.wins}
-                      </TableCell>
-                      <TableCell className="text-right font-bold text-red-500">
-                        {player.losses}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        </TableCell>
+                        <TableCell className="text-right font-bold text-green-500">
+                          {isUnranked ? (
+                            <span className="text-muted-foreground">---</span>
+                          ) : (
+                            player.wins
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right font-bold text-red-500">
+                          {isUnranked ? (
+                            <span className="text-muted-foreground">---</span>
+                          ) : (
+                            player.losses
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                   {players.length === 0 && (
                     <TableRow>
                       <TableCell
