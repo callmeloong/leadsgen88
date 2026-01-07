@@ -68,8 +68,8 @@ export default async function Home() {
     .select(
       `
             *,
-            player1:player1Id(name, id),
-            player2:player2Id(name, id)
+            player1:player1Id(name, id, email),
+            player2:player2Id(name, id, email)
         `
     )
     .eq("status", "LIVE")
@@ -322,6 +322,7 @@ export default async function Home() {
             matches={recentMatches || []}
             upcoming={upcomingMatches || []}
             live={validLiveMatches}
+            currentUserId={currentPlayer?.id || user?.id}
           />
         </div>
       </div>

@@ -805,6 +805,104 @@ export async function issueOpenChallenge(message?: string, scheduledTime?: strin
     return { success: true }
 }
 
+export async function cancelLiveMatch(matchId: string) {
+    const cookieStore = await cookies()
+    const supabase = createClient(cookieStore)
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: "Unauthorized" }
+
+    // Fetch match with players to get names and current Elos
+    const { data: match } = await supabase
+        .from('Match')
+        .select(`
+            *,
+            player1:player1Id(*),
+            player2:player2Id(*)
+        `)
+        .eq('id', matchId)
+        .single()
+
+    if (!match) return { error: "Trận đấu không tồn tại" }
+    if (match.status !== 'LIVE') return { error: "Trận đấu không thể hủy" }
+
+    // Identify who is cancelling
+    // Check Auth ID vs Player ID (or email fallback)
+    let cancellerId = null
+    let opponentId = null
+    let cancellerName = ''
+    let opponentName = ''
+    let cancellerIsP1 = false
+
+    // Check Player ID matching User ID
+    if (match.player1Id === user.id) {
+        cancellerId = match.player1Id
+        opponentId = match.player2Id
+        cancellerName = match.player1.name
+        opponentName = match.player2.name
+        cancellerIsP1 = true
+    } else if (match.player2Id === user.id) {
+        cancellerId = match.player2Id
+        opponentId = match.player1Id
+        cancellerName = match.player2.name
+        opponentName = match.player1.name
+        cancellerIsP1 = false
+    } else {
+        // Fallback checks (email) if IDs don't match
+        if (match.player1.email === user.email) {
+            cancellerId = match.player1Id
+            opponentId = match.player2Id
+            cancellerName = match.player1.name
+            opponentName = match.player2.name
+            cancellerIsP1 = true
+        } else if (match.player2.email === user.email) {
+            cancellerId = match.player2Id
+            opponentId = match.player1Id
+            cancellerName = match.player2.name
+            opponentName = match.player2.name
+            cancellerIsP1 = false
+        } else {
+            return { error: "Bạn không tham gia trận đấu này" }
+        }
+    }
+
+    // Apply Elo Penalty: -20 for Canceller, +20 for Opponent
+    // Fetch fresh player data to be sure
+    const { data: p1 } = await supabase.from('Player').select('elo').eq('id', cancellerId).single()
+    const { data: p2 } = await supabase.from('Player').select('elo').eq('id', opponentId).single()
+
+    if (p1 && p2) {
+        await supabase.from('Player').update({ elo: p1.elo - 20 }).eq('id', cancellerId)
+        await supabase.from('Player').update({ elo: p2.elo + 20 }).eq('id', opponentId)
+    }
+
+    // Update Match Status
+    const { error: updateError } = await supabase
+        .from('Match')
+        .update({
+            status: 'CANCELLED',
+            eloDelta1: cancellerIsP1 ? -20 : 20,
+            eloDelta2: cancellerIsP1 ? 20 : -20
+        })
+        .eq('id', matchId)
+
+    if (updateError) return { error: "Lỗi khi hủy trận đấu" }
+
+    // Notify Telegram
+    let msg = `🚫 <b>TRẬN ĐẤU ĐÃ BỊ HỦY!</b>\n\n`
+    msg += `Người hủy: <b>${escapeHtml(cancellerName)}</b>\n`
+    msg += `Lý do: <i>\"Sợ quá bỏ chạy\"</i> (hoặc có việc bận) 🐔\n\n`
+    msg += `📉 <b>${escapeHtml(cancellerName)}</b> bị phạt: <b style="color:red">-20 Elo</b>\n`
+    msg += `📈 <b>${escapeHtml(opponentName)}</b> được tặng: <b style="color:green">+20 Elo</b>`
+
+    await sendTelegramMessage(msg)
+
+    revalidatePath('/')
+    revalidatePath(`/live/${matchId}`)
+
+    return { success: true }
+}
+
 export async function acceptOpenChallenge(challengeId: string) {
     const cookieStore = await cookies()
     const supabase = createClient(cookieStore)
