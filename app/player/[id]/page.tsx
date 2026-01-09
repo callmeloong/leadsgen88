@@ -241,7 +241,8 @@ export default async function PlayerProfile({
               </TableRow>
             </TableHeader>
             <TableBody>
-                  const isP1 = match.player1Id === id;
+              {matches?.map((match) => {
+                const isP1 = match.player1Id === id;
                 const opponentName = isP1
                   ? match.player2.name
                   : match.player1.name;
@@ -249,16 +250,19 @@ export default async function PlayerProfile({
                 const oppScore = isP1 ? match.player2Score : match.player1Score;
                 const isWin = myScore > oppScore;
                 const isDraw = myScore === oppScore;
-                const isCancelled = match.status === 'CANCELLED';
+                const isCancelled = match.status === "CANCELLED";
                 const eloChange = isP1 ? match.eloDelta1 : match.eloDelta2;
 
                 return (
                   <TableRow key={match.id} className="hover:bg-muted/50">
                     <TableCell>
                       {isCancelled ? (
-                         <Badge variant="outline" className="border-red-900 bg-red-950 text-red-500">
-                             CANCELLED
-                         </Badge>
+                        <Badge
+                          variant="outline"
+                          className="border-red-900 bg-red-950 text-red-500"
+                        >
+                          CANCELLED
+                        </Badge>
                       ) : isDraw ? (
                         <Badge
                           variant="secondary"
@@ -295,9 +299,11 @@ export default async function PlayerProfile({
                     </TableCell>
                     <TableCell className="text-center font-mono text-xl">
                       {isCancelled ? (
-                          <span className="text-muted-foreground text-sm">--</span>
+                        <span className="text-muted-foreground text-sm">
+                          --
+                        </span>
                       ) : (
-                          <>
+                        <>
                           <span
                             className={
                               isDraw
@@ -321,7 +327,7 @@ export default async function PlayerProfile({
                           >
                             {oppScore}
                           </span>
-                          </>
+                        </>
                       )}
                     </TableCell>
                     <TableCell className="text-right font-mono text-lg">

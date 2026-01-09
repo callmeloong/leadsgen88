@@ -22,6 +22,7 @@ interface MatchActivity {
   status: string;
   scheduled_time: string;
   message?: string;
+  updatedAt?: string;
 }
 
 function getFlavorText(p1Score: number, p2Score: number, eloDiff: number) {

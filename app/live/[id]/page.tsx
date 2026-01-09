@@ -111,7 +111,7 @@ export default function LiveMatchPage({
 
     setUpdating(true);
     const res = await finishMatch(match.id);
-    if (res.error) {
+    if ("error" in res) {
       toast.error(res.error);
       setUpdating(false);
     } else {
