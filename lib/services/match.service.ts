@@ -5,6 +5,70 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { sendTelegramMessage, escapeHtml } from '@/lib/telegram'
 
+// Helper function to handle match completion (Calculate Elo, Update Status, Notify)
+async function _completeMatch(supabase: any, matchId: string) {
+    const { data: match, error: fetchError } = await supabase
+        .from('Match')
+        .select('*, player1:player1Id(*), player2:player2Id(*)')
+        .eq('id', matchId)
+        .single()
+
+    if (fetchError || !match) return { error: "Match not found" }
+
+    // Prevent double approval
+    if (match.status === 'APPROVED') return { success: true } // Already approved
+
+    const p1 = match.player1
+    const p2 = match.player2
+    const { count: p1Count } = await supabase.from('Match').select('*', { count: 'exact', head: true }).or(`player1Id.eq.${p1.id},player2Id.eq.${p1.id}`).eq('status', 'APPROVED')
+    const { count: p2Count } = await supabase.from('Match').select('*', { count: 'exact', head: true }).or(`player1Id.eq.${p2.id},player2Id.eq.${p2.id}`).eq('status', 'APPROVED')
+
+    const p1Total = p1Count || 0
+    const p2Total = p2Count || 0
+
+    let s1, s2;
+    if (match.player1Score > match.player2Score) { s1 = 1; s2 = 0; }
+    else if (match.player2Score > match.player1Score) { s1 = 0; s2 = 1; }
+    else { s1 = 0.5; s2 = 0.5; }
+
+    const scoreDiff = Math.abs(match.player1Score - match.player2Score)
+    const marginFactor = scoreDiff > 0 ? Math.sqrt(scoreDiff) : 1
+    const K1_Val = p1Total < 30 ? 32 : 16
+    const K2_Val = p2Total < 30 ? 32 : 16
+
+    const p1Expected = 1 / (1 + Math.pow(10, (p2.elo - p1.elo) / 400))
+    const p2Expected = 1 / (1 + Math.pow(10, (p1.elo - p2.elo) / 400))
+
+    const delta1 = Math.round(K1_Val * (s1 - p1Expected) * marginFactor)
+    const delta2 = Math.round(K2_Val * (s2 - p2Expected) * marginFactor)
+
+    const { error: updateError } = await supabase.from('Match').update({
+        status: 'APPROVED',
+        eloDelta1: delta1,
+        eloDelta2: delta2,
+        updatedAt: new Date().toISOString()
+    }).eq('id', matchId)
+
+    if (updateError) return { error: "Failed to update match status" }
+
+    const msg = `🏁 <b>TRẬN ĐẤU KẾT THÚC!</b>\n\n<b>${escapeHtml(p1.name)}</b> vs <b>${escapeHtml(p2.name)}</b>\nTỉ số: ${match.player1Score} - ${match.player2Score}\n\nELO Update: ${escapeHtml(p1.name)} (${delta1 > 0 ? '+' : ''}${delta1}), ${escapeHtml(p2.name)} (${delta2 > 0 ? '+' : ''}${delta2})`
+    await sendTelegramMessage(msg)
+
+    await supabase.from('Player').update({
+        elo: p1.elo + delta1,
+        wins: p1.wins + (s1 === 1 ? 1 : 0),
+        losses: p1.losses + (s1 === 0 && s2 === 1 ? 1 : 0)
+    }).eq('id', p1.id)
+
+    await supabase.from('Player').update({
+        elo: p2.elo + delta2,
+        wins: p2.wins + (s2 === 1 ? 1 : 0),
+        losses: p2.losses + (s2 === 0 && s1 === 1 ? 1 : 0)
+    }).eq('id', p2.id)
+
+    return { success: true }
+}
+
 export async function createMatchService(player1Id: string, player2Id: string, player1Score: number, player2Score: number) {
     if (!player1Id || !player2Id) return { error: "Cần chọn 2 người chơi" }
     if (player1Id === player2Id) return { error: "Người chơi phải khác nhau" }
@@ -129,51 +193,8 @@ export async function confirmMatchService(matchId: string) {
         if (isSubmitter) return { error: "You cannot verify your own submission" }
     }
 
-    const p1 = match.player1
-    const p2 = match.player2
-    const { count: p1Count } = await supabase.from('Match').select('*', { count: 'exact', head: true }).or(`player1Id.eq.${p1.id},player2Id.eq.${p1.id}`).eq('status', 'APPROVED')
-    const { count: p2Count } = await supabase.from('Match').select('*', { count: 'exact', head: true }).or(`player1Id.eq.${p2.id},player2Id.eq.${p2.id}`).eq('status', 'APPROVED')
-
-    const p1Total = p1Count || 0
-    const p2Total = p2Count || 0
-
-    let s1, s2;
-    if (match.player1Score > match.player2Score) { s1 = 1; s2 = 0; }
-    else if (match.player2Score > match.player1Score) { s1 = 0; s2 = 1; }
-    else { s1 = 0.5; s2 = 0.5; }
-
-    const scoreDiff = Math.abs(match.player1Score - match.player2Score)
-    const marginFactor = scoreDiff > 0 ? Math.sqrt(scoreDiff) : 1
-    const K1_Val = p1Total < 30 ? 32 : 16
-    const K2_Val = p2Total < 30 ? 32 : 16
-
-    const p1Expected = 1 / (1 + Math.pow(10, (p2.elo - p1.elo) / 400))
-    const p2Expected = 1 / (1 + Math.pow(10, (p1.elo - p2.elo) / 400))
-
-    const delta1 = Math.round(K1_Val * (s1 - p1Expected) * marginFactor)
-    const delta2 = Math.round(K2_Val * (s2 - p2Expected) * marginFactor)
-
-    await supabase.from('Match').update({
-        status: 'APPROVED',
-        eloDelta1: delta1,
-        eloDelta2: delta2,
-        updatedAt: new Date().toISOString()
-    }).eq('id', matchId)
-
-    const msg = `✅ <b>KÈO ĐÃ CHỐT!</b>\n\n${escapeHtml(p1.name)} vs ${escapeHtml(p2.name)}\nTỉ số: ${match.player1Score} - ${match.player2Score}\n\nELO: ${escapeHtml(p1.name)} (${delta1 > 0 ? '+' : ''}${delta1}), ${escapeHtml(p2.name)} (${delta2 > 0 ? '+' : ''}${delta2})`
-    await sendTelegramMessage(msg)
-
-    await supabase.from('Player').update({
-        elo: p1.elo + delta1,
-        wins: p1.wins + (s1 === 1 ? 1 : 0),
-        losses: p1.losses + (s1 === 0 && s2 === 1 ? 1 : 0)
-    }).eq('id', p1.id)
-
-    await supabase.from('Player').update({
-        elo: p2.elo + delta2,
-        wins: p2.wins + (s2 === 1 ? 1 : 0),
-        losses: p2.losses + (s2 === 0 && s1 === 1 ? 1 : 0)
-    }).eq('id', p2.id)
+    const result = await _completeMatch(supabase, matchId)
+    if (result.error) return result
 
     revalidatePath('/')
     return { success: true }
@@ -238,6 +259,18 @@ export async function updateMatchScoreService(matchId: string, player1Score: num
         player1Score,
         player2Score
     }).eq('id', matchId)
+
+    // AUTO-FINISH LOGIC: Check Race To
+    if (match.raceTo && (player1Score >= match.raceTo || player2Score >= match.raceTo)) {
+        const result = await _completeMatch(supabase, matchId)
+        if (result.error) {
+            console.error("Auto-finish failed:", result.error)
+        } else {
+            revalidatePath(`/live/${matchId}`)
+            revalidatePath('/')
+            return { success: true, message: "Trận đấu đã kết thúc (Chạm " + match.raceTo + ")" }
+        }
+    }
 
     revalidatePath(`/live/${matchId}`)
     revalidatePath('/')
@@ -308,52 +341,8 @@ export async function finishMatchService(matchId: string) {
             return { error: "Đang chờ đối thủ xác nhận" }
         }
 
-        const p1 = match.player1
-        const p2 = match.player2
-
-        const { count: p1Count } = await supabase.from('Match').select('*', { count: 'exact', head: true }).or(`player1Id.eq.${p1.id},player2Id.eq.${p1.id}`).eq('status', 'APPROVED')
-        const { count: p2Count } = await supabase.from('Match').select('*', { count: 'exact', head: true }).or(`player1Id.eq.${p2.id},player2Id.eq.${p2.id}`).eq('status', 'APPROVED')
-
-        const p1Total = p1Count || 0
-        const p2Total = p2Count || 0
-
-        let s1, s2;
-        if (match.player1Score > match.player2Score) { s1 = 1; s2 = 0; }
-        else if (match.player2Score > match.player1Score) { s1 = 0; s2 = 1; }
-        else { s1 = 0.5; s2 = 0.5; }
-
-        const scoreDiff = Math.abs(match.player1Score - match.player2Score)
-        const marginFactor = scoreDiff > 0 ? Math.sqrt(scoreDiff) : 1
-        const K1_Val = p1Total < 30 ? 32 : 16
-        const K2_Val = p2Total < 30 ? 32 : 16
-
-        const p1Expected = 1 / (1 + Math.pow(10, (p2.elo - p1.elo) / 400))
-        const p2Expected = 1 / (1 + Math.pow(10, (p1.elo - p2.elo) / 400))
-
-        const delta1 = Math.round(K1_Val * (s1 - p1Expected) * marginFactor)
-        const delta2 = Math.round(K2_Val * (s2 - p2Expected) * marginFactor)
-
-        await supabase.from('Match').update({
-            status: 'APPROVED',
-            eloDelta1: delta1,
-            eloDelta2: delta2,
-            updatedAt: new Date().toISOString()
-        }).eq('id', matchId)
-
-        const msg = `🏁 <b>TRẬN ĐẤU KẾT THÚC!</b>\n\n<b>${escapeHtml(p1.name)}</b> vs <b>${escapeHtml(p2.name)}</b>\nTỉ số: ${match.player1Score} - ${match.player2Score}\n\nELO Update: ${escapeHtml(p1.name)} (${delta1 > 0 ? '+' : ''}${delta1}), ${escapeHtml(p2.name)} (${delta2 > 0 ? '+' : ''}${delta2})`
-        await sendTelegramMessage(msg)
-
-        await supabase.from('Player').update({
-            elo: p1.elo + delta1,
-            wins: p1.wins + (s1 === 1 ? 1 : 0),
-            losses: p1.losses + (s1 === 0 && s2 === 1 ? 1 : 0)
-        }).eq('id', p1.id)
-
-        await supabase.from('Player').update({
-            elo: p2.elo + delta2,
-            wins: p2.wins + (s2 === 1 ? 1 : 0),
-            losses: p2.losses + (s2 === 0 && s1 === 1 ? 1 : 0)
-        }).eq('id', p2.id)
+        const result = await _completeMatch(supabase, matchId)
+        if (result.error) return result
 
         revalidatePath('/')
         return { success: true }
@@ -389,7 +378,8 @@ export async function initializeLiveMatchService(challengeId: string) {
         player1Score: 0,
         player2Score: initialP2Score,
         status: 'LIVE',
-        scheduled_time: challenge.scheduled_time
+        scheduled_time: challenge.scheduled_time,
+        raceTo: challenge.race_to // Capture race_to from Challenge
     }).select().single()
 
     if (error || !newMatch) {
