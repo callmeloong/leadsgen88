@@ -53,7 +53,7 @@ export default async function PlayerProfile({
         `
     )
     .or(`player1Id.eq.${id},player2Id.eq.${id}`)
-    .eq("status", "APPROVED")
+    .in("status", ["APPROVED", "CANCELLED"])
     .order("createdAt", { ascending: false })
     .limit(20);
 
@@ -241,8 +241,7 @@ export default async function PlayerProfile({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {matches?.map((match: any) => {
-                const isP1 = match.player1Id === id;
+                  const isP1 = match.player1Id === id;
                 const opponentName = isP1
                   ? match.player2.name
                   : match.player1.name;
@@ -250,12 +249,17 @@ export default async function PlayerProfile({
                 const oppScore = isP1 ? match.player2Score : match.player1Score;
                 const isWin = myScore > oppScore;
                 const isDraw = myScore === oppScore;
+                const isCancelled = match.status === 'CANCELLED';
                 const eloChange = isP1 ? match.eloDelta1 : match.eloDelta2;
 
                 return (
                   <TableRow key={match.id} className="hover:bg-muted/50">
                     <TableCell>
-                      {isDraw ? (
+                      {isCancelled ? (
+                         <Badge variant="outline" className="border-red-900 bg-red-950 text-red-500">
+                             CANCELLED
+                         </Badge>
+                      ) : isDraw ? (
                         <Badge
                           variant="secondary"
                           className="bg-zinc-700 text-zinc-300 hover:bg-zinc-600"
@@ -290,29 +294,35 @@ export default async function PlayerProfile({
                       </div>
                     </TableCell>
                     <TableCell className="text-center font-mono text-xl">
-                      <span
-                        className={
-                          isDraw
-                            ? "text-muted-foreground"
-                            : isWin
-                            ? "text-green-500"
-                            : "text-red-500"
-                        }
-                      >
-                        {myScore}
-                      </span>
-                      <span className="text-muted-foreground mx-2">-</span>
-                      <span
-                        className={
-                          isDraw
-                            ? "text-muted-foreground"
-                            : !isWin
-                            ? "text-green-500"
-                            : "text-red-500"
-                        }
-                      >
-                        {oppScore}
-                      </span>
+                      {isCancelled ? (
+                          <span className="text-muted-foreground text-sm">--</span>
+                      ) : (
+                          <>
+                          <span
+                            className={
+                              isDraw
+                                ? "text-muted-foreground"
+                                : isWin
+                                ? "text-green-500"
+                                : "text-red-500"
+                            }
+                          >
+                            {myScore}
+                          </span>
+                          <span className="text-muted-foreground mx-2">-</span>
+                          <span
+                            className={
+                              isDraw
+                                ? "text-muted-foreground"
+                                : !isWin
+                                ? "text-green-500"
+                                : "text-red-500"
+                            }
+                          >
+                            {oppScore}
+                          </span>
+                          </>
+                      )}
                     </TableCell>
                     <TableCell className="text-right font-mono text-lg">
                       {eloChange > 0 ? (

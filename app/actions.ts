@@ -685,7 +685,8 @@ export async function finishMatch(matchId: string) {
         await supabase.from('Match').update({
             status: 'APPROVED',
             eloDelta1: delta1,
-            eloDelta2: delta2
+            eloDelta2: delta2,
+            updatedAt: new Date().toISOString()
         }).eq('id', matchId)
 
         // Notify
@@ -882,7 +883,8 @@ export async function cancelLiveMatch(matchId: string) {
         .update({
             status: 'CANCELLED',
             eloDelta1: cancellerIsP1 ? -20 : 20,
-            eloDelta2: cancellerIsP1 ? 20 : -20
+            eloDelta2: cancellerIsP1 ? 20 : -20,
+            updatedAt: new Date().toISOString()
         })
         .eq('id', matchId)
 

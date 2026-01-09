@@ -263,7 +263,9 @@ export function ActivityFeed({
                     }`}
                   />
                   <p className="text-xs text-muted-foreground font-mono mb-1">
-                    {new Date(match.createdAt).toLocaleString("vi-VN", {
+                    {new Date(
+                      match.updatedAt || match.createdAt
+                    ).toLocaleString("vi-VN", {
                       day: "2-digit",
                       month: "2-digit",
                       year: "numeric",
